@@ -1,0 +1,101 @@
+Date,Client,Reportee,Alert Name,Summary,Resolution / Action Item,Tracker,Updates / Remark
+10/4/2026,HDFC,Bhavana.hm,HDFC-Prod-RDS-High-DB-Connections - P2-Alert,- SQL Query running with Resource utilsation,"- Updated the Query as per the requirements 
+",RCA - https://mintoak.atlassian.net/wiki/x/IwBycQ,
+11/4/2026,HDFC,Bhavana.hm,"HDFC-Prod-ALB - HTTP 5XX Error Count Crossed 200 - P1-Alert"" in Asia Pacific (Mumbai)",- Settlement PODs were stuck in restart,- Changed Min - Max count for settlement pods deployment,RCA - https://mintoak.atlassian.net/wiki/x/IwBycQ,
+15/4/2026,HDFC,Bhavana.hm,HDFC-Prod-ALB - HTTP 5XX Error Count Crossed 200 - P1-Alert,- Postgres DB Upgrade Activity caused an issue with the RDS ,"- Case raised with AWS Support team
+",,
+15/4/2026,HDFC,Deva.kumar,Settlement Pods Memory Alert Threshold recheck,"- Mean memory consumption is typically 1.5–1.8GB, reaching 2.5–3.5GB during cron jobs. 
+- With the recent increase to 10 pods, the current low alert threshold is causing excessive noise. 
+- need to update threshold value to mitigate these unnecessary alerts.","- Case raissed with DevOps Team to update the Alert threshold
+- Need to test in Lower environments (UAT/Pre-Prod)",HDFCMIN-2230: PROD || Threshold Adjustment Needed for Settlement Service,
+16/4/2026,HDFC,Bhavana.hm,HDFC-Prod-ALB - HTTP 5XX Error Count Crossed 200 - P1-Alert,"- alert is linked to high CPU utilization in MMP and settlement services. 
+- HPA was triggered, scalling the affected pods. ","- DevOps team to discuss the recent traffic surge, associated changes, or deployments to analyze the situation, identify contributing factors, and prevent future incidents.
+- Alert config needs to be rechecked as the mentioned Pods were scalled not restarted",SRE-26: HDFC | Pods Restart alert config recheck,
+17/4/2026,HDFC,Deva.kumar,Datapurge Service Memory Surge Issue,"- Memory spike even after successfull cron job run.
+
+- As a workaround restarted the pods to relase the memory","
+- Escalated to DevOps Team for resolution
+- Restarted the Pods to release the memory
+- More analysis needed on Node level logs and Resource Usage metrics
+- Created a ticket internally for SRE team to review the logs for any discripancies observed at the Node level. 
+- Need debugging from Devs","- https://mintoak.atlassian.net/browse/HBSH-28837
+- https://mintoak.atlassian.net/browse/SRE-27",
+18/4/2026,HDFC,Bhavana.hm,Production-Transaction-Details-DMS-Task-CDC-Destination-Latency,"- alert triggered around 11:58 AM from 
+- Sudden spike observed at around 2:26 pm
+- Escalated at 6:20 PM  to DevOps team 
+- alert was resolved around 7:12 pm count was 21k around and re-triggered  at the same time with 14k CDC count",,,
+20/4/2026,HDFC,Abhirup.saha,HDFC-Prod-ALB - HTTP 5XX Error Count Crossed 200 - P1-Alert,"503 alert for ""clickhouse.clickhouse.pname-http""
+","- Alert is escalated to DevOps for the resolution 
+",,
+25/4/2026,SBI,Abhirup.saha,SBI | Missing 'upiDetails' parameter in POS callback requests from Hitachi for BharatQR payments,"Issue: Missing 'upiDetails' parameter in POS callback requests from Hitachi for BharatQR payments after 2026-04-23 23:57:20.450.
+
+Details:
+
+*   The 'upiDetails' parameter, which was previously included, is now absent in the callback requests received from Hitachi after the specified date and time.
+*   According to the API documentation, the 'upiDetails' parameter is mandatory for both RailwayQR and BharatQR payment transactions.","Action Request:
+*   Contact Hitachi to resolve.
+*   Provide DB dump for affected transactions for consistency.
+*   Hitachi requests support: UPI transactions not visible in YMA for TPOS MIDs. Query about YMA changes.",https://mintoak.atlassian.net/browse/SYR-2526?,
+27/4/2026,HDFC,Deva.kumar,Settlement service HPA trigger,"Two NATS events were re-pushed simultaneously in peak hours leading to observations of the database load and Horizontal Pod Autoscaler (HPA) triggering. This suggests a potential issue or increased workload when handling duplicate or reprocessed events.
+",,,
+28/4/2026,HDFC,Abhirup.saha,"5xx alerts for settlement service 
+	
+System congestion and session overload during traffic spike at settlement service","- HDFC | HPA scalling limits & CPU Exhaustion during traffic spike
+The settlement service saw a surge in requests. The HPA reached its limit, causing CPU spikes and session failures because it could not scale. A monitoring gap was found: no proactive alerts warned of the scaling ceiling, delaying manual intervention. We opened a high-priority ticket for proactive alerts at HPA service. We have increased HPA maximums and evaluating Cluster Autoscaling. These measures shift us to a proactive stance, ensuring the infrastructure can handle similar traffic without service interruption.
+
+",https://mintoak.atlassian.net/browse/SRE-31,https://mintoak.atlassian.net/wiki/x/AYBscw,
+02/5/2026,HDFC,Bhavana.hm, HDFC-Prod-UPI Callback Queue Size Over 100 - P1-Alert,"The RDS High DB Connections alert was triggered due to HPA scaling, which increased active database connections. Simultaneously, high peak-hour traffic caused the UPI Callback Queue Size to exceed 100. This surge, along with the automatic restart of two pods, resulted in temporary 5xx errors before the system stabilized.",,,
+04/5/2026,SBI,Bhavana.hm,High Current Activity and Replica Lag in replica 1,"- Latency due to temporary write surge in the main database.
+- Scheduled cron job at 4:30 PM caused high DB load and activity.
+- Read replica lag due to sudden write influx.
+- Recommend query optimization.",https://mintoak.atlassian.net/browse/HDFCMIN-2244,,
+08/5/2026,SBI,Deva.kumar,SFTP connectivity issue for completed leadId due to which documents were not uploaded to SFTP,"- The initial issue (as part of ticket : SYR-2372: PROD || Missing Merchant Documents – S3 Error) was caused by multiple concurrent requests being triggered for the /sbi-onboarding API within 3–4 seconds, leading to multiple requests being processed for the same leadId. While the primary fix was expected from the frontend, an additional backend check was implemented to allow only the first request to be processed and mark subsequent ones as Duplicate Request.
+
+During analysis of this ticket(SYR-2524: PROD|| Missing Documents in SFTP Path – Immediate Attention Required), it was observed that:
+
+The first API call timed out while invoking the bank API.
+All subsequent retry attempts were marked as Duplicate Request and were not processed.
+
+As a result:
+
+- No successful retry occurred.
+- The lead moved to an expired state.
+- The merchant had to restart the onboarding journey.
+",https://mintoak.atlassian.net/browse/SYR-2524,,
+11/5/2026,SBI,Abhirup.saha,Universal Service Login Issue,"- The incident resulted in temporary disruption to login functionality due to instability in the universal service caused by a backend redis connectivity issue during failover/recovery handling. 
+- The issue was promptly identified through monitoring alerts and service investigation, and corrective actions were implemented to restore normal operations within 45 minutes. 
+- No data loss or security impact was observed. Preventive improvements implemented to strengthen service resilience, dependency validation, and monitoring to reduce recurrence risk.",RCA: https://mintoak.atlassian.net/wiki/x/EIC1d,,
+13/5/2026,SBI,Sushrut.netkar,Windows Patching Activity - Post activity callback verification,"- Hitachi successfully executed the scheduled Windows patching activity, which was completed on May 13, 2026, without any major disruptions.
+- Following the completion of the maintenance window, all critical transactions are now processing successfully, indicating a smooth return to normal operations.
+- As a final verification step, the post-activity callback procedures have been thoroughly checked and confirmed as successful by the on-call Site Reliability Engineer, Sushrut Netkar.",https://mintoak.atlassian.net/browse/SRE-42,,
+17/5/2026,Mosambee,Abhirup.saha,Traffic Variation Observed – Request to Check for Anomalies,"- Mosambee SOC reported a significant drop in Mintoak Callback system traffic. Specifically, the number of requests plummeted from 2126 to 97 on May 17th.
+- Abhirup validated and verified that the Mintoak system itself wasn't experiencing any latency problems. He suggested the reduced traffic was due to fewer requests than usual during that period.",Email Sub: Traffic Variation Observed – Request to Check for Anomalies,,
+17/5/2026,HDFC,Deva.kumar,NATS events execution for pub settlement.recon.,"- Took handover from DevOps team for the repeatative NATS events repush task
+- Deva is working on Confluence page to document this task
+- Further SRE team will be working on automating this task",https://mintoak.atlassian.net/browse/SRE-41,,
+20/5/2026,SBI,Deva.kumar,"Memory Usage per MOB Container-Production alerts 
+Memory Usage per SETTLEMENT Container-Production alerts ","- high memory consumption in the MOB pod caused by repeated processing of a large set of incorrectly mapped TIDs. 
+- Resolving this issue by reassigning TIDs to correct CIDs will reduce memory load, stop message redelivery loops, and improve system performance.","Tracker: https://mintoak.atlassian.net/browse/SYR-2546
+
+- Next steps:
+
+Execute the prerequisite update query to fill missing bank_provided_legal_name values (Owner: Divyesh Bhalekar)
+
+Run the main CID correction script to reassign TIDs to new CIDs based on legal names (Owner: Divyesh Bhalekar)
+
+Post-script, update login roles and entity mappings for affected TIDs using the pre-execution captured list (Owner: Divyesh Bhalekar)",,
+21/5/2026,HDFC,Sushrut.netkar,Intermittent Drop in Card Callback Requests /partner/v2/card-callback request,"Sushrut reported intermittent drop/gaps in /partner/v2/card-callback requests since May 20th.
+Deva confirmed a complete drop since May 21st; HDFC API team confirmed success on their end.
+Bhavana confirmed Pine Labs migrated V2 callbacks to V3; V2 endpoints are now unused.",,,
+23/5/2026,Mosambee,Sushrut.netkar,Traffic Variation Observed – Request to Check for Anomalies,"- Abhishek from Mosambee SOC team reported traffic drop in Mintoak Callback on May 13th between 1:00 am and 1:20 am.
+- Sushrut confirmed UPI system was not pushing callbacks to Mintoak.",,,
+27/5/2026,Axis Bank,Ashwani.kumar, Axis Prod Grafana Alert - CPU Usage per oneapp Container-Production,"Persistent high CPU usage alert for AXIS Bank’s production environment detected by Grafana over the last 30 days. Resolving this is important to identify if any service is causing excessive CPU consumption and to prevent potential system performance issues.
+
+",https://mintoak.atlassian.net/browse/DT-1569,,
+28/5/2026,Axis Bank,Ashwani.kumar,UnIversal HPA MAX ALL TIME,"- Universal HPA for Axis Bank, which is continuously hitting its maximum threshold and causing persistent alerts. 
+- Resolving this is critical to ensure proper monitoring and avoid unaddressed service issues.",https://mintoak.atlassian.net/browse/DT-1570,,
+01/6/2026,HDFC,Sushrut.netkar,HDFC Metabase Slowness ,"- HDFC-Prod-Redshift-Replica2 High CPU Utilization Alert triggered due to sustained 99.9% CPU usage.
+- Identified two queries, with IDs 62834595 and 62833796, that had been running for an extended duration.
+- Terminating these queries resolved the high CPU utilization issue.
+- Action Item: Implement monitoring for queries running beyond their typical duration to enable proactive intervention.
+ ",https://mintoak.atlassian.net/browse/SRE-65,,

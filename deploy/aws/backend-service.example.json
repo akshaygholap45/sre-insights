@@ -1,0 +1,28 @@
+{
+  "serviceName": "sre-operational-insights-backend",
+  "cluster": "sre-operational-insights",
+  "taskDefinition": "sre-operational-insights-backend",
+  "desiredCount": 1,
+  "launchType": "FARGATE",
+  "platformVersion": "LATEST",
+  "deploymentConfiguration": {
+    "maximumPercent": 200,
+    "minimumHealthyPercent": 100
+  },
+  "networkConfiguration": {
+    "awsvpcConfiguration": {
+      "subnets": ["subnet-xxxxxxxx", "subnet-yyyyyyyy"],
+      "securityGroups": ["sg-backend-ecs"],
+      "assignPublicIp": "DISABLED"
+    }
+  },
+  "loadBalancers": [
+    {
+      "targetGroupArn": "arn:aws:elasticloadbalancing:<AWS_REGION>:<AWS_ACCOUNT_ID>:targetgroup/sre-insights-backend/xxxxxxxx",
+      "containerName": "backend",
+      "containerPort": 8000
+    }
+  ],
+  "healthCheckGracePeriodSeconds": 60,
+  "enableExecuteCommand": true
+}

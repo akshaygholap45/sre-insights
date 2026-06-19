@@ -1,0 +1,59 @@
+{
+  "family": "sre-operational-insights-backend",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "1024",
+  "memory": "2048",
+  "executionRoleArn": "arn:aws:iam::<AWS_ACCOUNT_ID>:role/sre-insights-ecs-task-execution-role",
+  "taskRoleArn": "arn:aws:iam::<AWS_ACCOUNT_ID>:role/sre-insights-backend-task-role",
+  "containerDefinitions": [
+    {
+      "name": "backend",
+      "image": "<AWS_ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com/sre-insights-backend:latest",
+      "essential": true,
+      "portMappings": [
+        {
+          "containerPort": 8000,
+          "hostPort": 8000,
+          "protocol": "tcp"
+        }
+      ],
+      "environment": [
+        { "name": "OPSGENIE_BASE_URL", "value": "https://api.opsgenie.com" },
+        { "name": "DEFAULT_SCHEDULE_ID", "value": "AMP_schedule" },
+        { "name": "OPSGENIE_SCHEDULE_IDENTIFIER_TYPE", "value": "name" },
+        { "name": "CORS_ORIGINS", "value": "https://<FRONTEND_DOMAIN>" },
+        { "name": "REQUEST_TIMEOUT_SECONDS", "value": "20" },
+        { "name": "DATA_DIR", "value": "/app/data" },
+        { "name": "OPSGENIE_ALERT_PAGE_LIMIT", "value": "100" },
+        { "name": "OPSGENIE_ALERT_MAX_RECORDS", "value": "2000" },
+        { "name": "OPSGENIE_CACHE_TTL_SECONDS", "value": "60" }
+      ],
+      "secrets": [
+        {
+          "name": "OPSGENIE_API_KEY",
+          "valueFrom": "arn:aws:secretsmanager:<AWS_REGION>:<AWS_ACCOUNT_ID>:secret:sre-insights/opsgenie-api-key"
+        },
+        {
+          "name": "GOOGLE_CHAT_WEBHOOK_URL",
+          "valueFrom": "arn:aws:secretsmanager:<AWS_REGION>:<AWS_ACCOUNT_ID>:secret:sre-insights/google-chat-webhook-url"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/sre-operational-insights/backend",
+          "awslogs-region": "<AWS_REGION>",
+          "awslogs-stream-prefix": "ecs"
+        }
+      },
+      "healthCheck": {
+        "command": ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/', timeout=5)\""],
+        "interval": 30,
+        "timeout": 10,
+        "retries": 3,
+        "startPeriod": 30
+      }
+    }
+  ]
+}
