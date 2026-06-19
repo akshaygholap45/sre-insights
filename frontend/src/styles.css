@@ -598,28 +598,33 @@ body {
   font-size: 0.75rem;
 }
 
-.timeline-grid {
-  display: grid;
-  min-width: 920px;
-}
-
-.timeline-row-fragment {
-  display: contents;
-}
-
-.timeline-head,
 .timeline-engineer,
-.timeline-cell {
-  min-height: 54px;
-  padding: 0.65rem;
-  border-right: 1px solid rgba(255, 255, 255, 0.08);
+.timeline-engineer-head {
+  width: 190px;
+  min-width: 190px;
+  padding: 0.7rem;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-.timeline-head {
+.hourly-timeline {
+  min-width: 920px;
+}
+
+.hourly-timeline-header,
+.hourly-timeline-row {
+  display: flex;
+}
+
+.hourly-timeline-header {
   position: sticky;
   top: 0;
-  z-index: 1;
+  z-index: 4;
+}
+
+.timeline-engineer-head {
+  position: sticky;
+  left: 0;
+  z-index: 5;
   color: var(--accent-cyan);
   font-size: 0.75rem;
   font-weight: 800;
@@ -628,15 +633,40 @@ body {
   backdrop-filter: blur(18px);
 }
 
-.timeline-head span,
-.timeline-head strong {
-  display: block;
+.timeline-axis {
+  flex: 0 0 auto;
+  background: rgba(8, 21, 36, 0.9);
 }
 
-.timeline-head strong {
-  margin-top: 0.15rem;
-  color: inherit;
-  font-size: 0.78rem;
+.timeline-day-bands,
+.timeline-hour-axis {
+  display: flex;
+}
+
+.timeline-day-band {
+  flex: 0 0 auto;
+  padding: 0.55rem 0.65rem;
+  color: var(--accent-cyan);
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  border-right: 1px solid rgba(255, 255, 255, 0.14);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.timeline-day-band.today {
+  background: rgba(56, 218, 199, 0.1);
+  box-shadow: inset 0 -3px 0 var(--accent-cyan);
+}
+
+.timeline-hour-tick {
+  flex: 0 0 auto;
+  padding: 0.35rem 0.15rem;
+  color: var(--ink-muted-dark);
+  font-size: 0.62rem;
+  text-align: center;
+  border-right: 1px solid rgba(255, 255, 255, 0.07);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .timeline-engineer {
@@ -644,9 +674,15 @@ body {
   left: 0;
   z-index: 2;
   display: flex;
+  width: 190px;
+  min-width: 190px;
+  min-height: 76px;
+  padding: 0.65rem;
   align-items: center;
   gap: 0.7rem;
   font-weight: 800;
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(8, 21, 36, 0.88);
   backdrop-filter: blur(18px);
 }
@@ -659,20 +695,19 @@ body {
   white-space: nowrap;
 }
 
-.timeline-cell {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-  flex-wrap: wrap;
-}
-
-.timeline-head.today,
-.timeline-cell.today {
-  background: rgba(56, 218, 199, 0.08);
-}
-
-.timeline-head.today {
-  box-shadow: inset 0 -3px 0 var(--accent-cyan);
+.timeline-track {
+  position: relative;
+  flex: 0 0 auto;
+  min-height: 76px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background:
+    repeating-linear-gradient(
+      90deg,
+      transparent 0,
+      transparent 43px,
+      rgba(255, 255, 255, 0.07) 43px,
+      rgba(255, 255, 255, 0.07) 44px
+    );
 }
 
 .timeline-chip {
@@ -681,14 +716,25 @@ body {
 }
 
 .shift-block {
+  position: absolute;
+  top: 10px;
   display: flex;
-  width: 100%;
-  min-width: 80px;
+  height: 56px;
+  min-width: 28px;
   padding: 0.45rem 0.55rem;
   flex-direction: column;
+  justify-content: center;
+  overflow: hidden;
   border: 1px solid rgba(56, 218, 199, 0.24);
   border-radius: 10px;
   background: linear-gradient(135deg, rgba(56, 218, 199, 0.15), rgba(100, 167, 255, 0.1));
+  box-shadow: 0 8px 20px rgba(56, 218, 199, 0.08);
+  white-space: nowrap;
+}
+
+.shift-block .MuiTypography-root {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .rotation-summary {
@@ -708,15 +754,33 @@ body {
   background: rgba(255, 255, 255, 0.44);
 }
 
-.light .timeline-head,
+.light .timeline-engineer-head,
+.light .timeline-axis,
 .light .timeline-engineer {
   background: rgba(255, 255, 255, 0.9);
 }
 
-.light .timeline-head,
+.light .timeline-engineer-head,
+.light .timeline-day-band,
+.light .timeline-hour-tick,
 .light .timeline-engineer,
-.light .timeline-cell {
+.light .timeline-track {
   border-color: rgba(11, 23, 38, 0.08);
+}
+
+.light .timeline-hour-tick {
+  color: var(--ink-muted-light);
+}
+
+.light .timeline-track {
+  background:
+    repeating-linear-gradient(
+      90deg,
+      transparent 0,
+      transparent 43px,
+      rgba(11, 23, 38, 0.07) 43px,
+      rgba(11, 23, 38, 0.07) 44px
+    );
 }
 
 .mobile-menu {

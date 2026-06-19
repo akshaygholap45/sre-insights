@@ -179,14 +179,49 @@ function dateColumns(startValue, endValue) {
   return columns;
 }
 
-function overlapsDay(entry, day) {
-  const start = entry.start ? new Date(entry.start) : null;
-  const end = entry.end ? new Date(entry.end) : null;
-  if (!start && !end) return false;
-  const dayStart = new Date(day);
-  const dayEnd = new Date(day);
-  dayEnd.setHours(23, 59, 59, 999);
-  return (!end || end >= dayStart) && (!start || start <= dayEnd);
+const TIMELINE_HOUR_WIDTH = 44;
+
+function timelineAxis(startValue, endValue) {
+  const start = new Date(startValue);
+  const end = new Date(endValue);
+  if (!Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime()) || end <= start) {
+    return { start, end, hours: 0, width: 0, days: [] };
+  }
+  const hours = (end - start) / 3600000;
+  const days = dateColumns(startValue, endValue).map((day) => {
+    const dayStart = new Date(day);
+    const dayEnd = new Date(day);
+    dayEnd.setHours(24, 0, 0, 0);
+    const clippedStart = new Date(Math.max(dayStart.getTime(), start.getTime()));
+    const clippedEnd = new Date(Math.min(dayEnd.getTime(), end.getTime()));
+    return {
+      date: day,
+      hours: Math.max(0, (clippedEnd - clippedStart) / 3600000),
+      startHour: clippedStart.getHours(),
+    };
+  }).filter((day) => day.hours > 0);
+  return { start, end, hours, width: hours * TIMELINE_HOUR_WIDTH, days };
+}
+
+function timelineBarStyle(entry, axis) {
+  const start = Math.max(new Date(entry.start).getTime(), axis.start.getTime());
+  const end = Math.min(new Date(entry.end).getTime(), axis.end.getTime());
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return null;
+  return {
+    left: `${((start - axis.start) / 3600000) * TIMELINE_HOUR_WIDTH}px`,
+    width: `${Math.max(28, ((end - start) / 3600000) * TIMELINE_HOUR_WIDTH)}px`,
+  };
+}
+
+function dateKey(value, timeZone) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date(value));
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${values.year}-${values.month}-${values.day}`;
 }
 
 function formatIstTime(value) {
@@ -846,8 +881,20 @@ function AlertsDashboard({ alerts }) {
           </Stack>
           <DataTable
             rows={filtered.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)}
-            columns={["Alert ID", "Message", "Priority", "Status", "Source", "Tags", "Created At (IST)", "Updated At (IST)", "Responders", "Owner"]}
-            render={(alert) => [alert.alert_id, alert.message, alert.priority, alert.status, alert.source, alert.tags?.join(", "), formatIst(alert.created_at), formatIst(alert.updated_at), alert.responders?.join(", "), alert.owner]}
+            columns={["Alert ID", "Message", "Priority", "Status", "Source", "Tags", "Created At (IST)", "Updated At (IST)", "Responders", "Owner", "Open"]}
+            render={(alert) => [
+              alert.alert_id,
+              alert.message,
+              alert.priority,
+              alert.status,
+              alert.source,
+              alert.tags?.join(", "),
+              formatIst(alert.created_at),
+              formatIst(alert.updated_at),
+              alert.responders?.join(", "),
+              alert.owner,
+              alert.alert_url ? <Button key={`${alert.alert_id}-open`} size="small" startIcon={<Launch />} href={alert.alert_url} target="_blank" rel="noreferrer">Opsgenie</Button> : "-",
+            ]}
           />
           <TablePagination component="div" count={filtered.length} page={page} onPageChange={(_, next) => setPage(next)} rowsPerPage={rowsPerPage} rowsPerPageOptions={[25, 50, 100]} onRowsPerPageChange={(e) => { setRowsPerPage(Number(e.target.value)); setPage(0); }} />
         </CardContent>
@@ -1235,7 +1282,7 @@ function OnCallManagementPage() {
   const [overrideOpen, setOverrideOpen] = useState(false);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [overrideForm, setOverrideForm] = useState({ user: "", start: "", end: "", alias: "", rotation_id: "" });
-  const columns = dateColumns(range.start, range.end);
+  const axis = timelineAxis(range.start, range.end);
   const entries = timeline?.entries || [];
   const engineers = [...new Set(entries.map((entry) => entry.name).filter(Boolean))].sort();
   const selectedScheduleMeta = schedules.find((schedule) => schedule.id === selectedSchedule);
@@ -1441,16 +1488,35 @@ function OnCallManagementPage() {
           </Stack>
           {!entries.length ? <EmptyState text="No timeline entries returned for this schedule and range." /> : (
             <Box className="timeline-wrap">
-              <Box className="timeline-grid" sx={{ gridTemplateColumns: `190px repeat(${columns.length}, minmax(104px, 1fr))` }}>
-                <Box className="timeline-head">Engineer</Box>
-                {columns.map((day) => (
-                  <Box className={`timeline-head ${day.toDateString() === now.toDateString() ? "today" : ""}`} key={day.toISOString()}>
-                    <span>{day.toLocaleDateString("en-IN", { weekday: "short" })}</span>
-                    <strong>{day.toLocaleDateString("en-IN", { day: "2-digit", month: "short" })}</strong>
+              <Box className="hourly-timeline" sx={{ width: `${190 + axis.width}px` }}>
+                <Box className="hourly-timeline-header">
+                  <Box className="timeline-engineer-head">Engineer</Box>
+                  <Box className="timeline-axis" sx={{ width: `${axis.width}px` }}>
+                    <Box className="timeline-day-bands">
+                      {axis.days.map((day) => (
+                        <Box
+                          className={`timeline-day-band ${dateKey(day.date, "Asia/Kolkata") === dateKey(now, "Asia/Kolkata") ? "today" : ""}`}
+                          key={day.date.toISOString()}
+                          sx={{ width: `${day.hours * TIMELINE_HOUR_WIDTH}px` }}
+                        >
+                          {day.date.toLocaleDateString("en-IN", { weekday: "short", day: "2-digit", month: "short" })}
+                        </Box>
+                      ))}
+                    </Box>
+                    <Box className="timeline-hour-axis">
+                      {Array.from({ length: Math.ceil(axis.hours) }, (_, index) => {
+                        const tick = new Date(axis.start.getTime() + index * 3600000);
+                        return (
+                          <Box className="timeline-hour-tick" key={tick.toISOString()} sx={{ width: `${TIMELINE_HOUR_WIDTH}px` }}>
+                            {tick.toLocaleTimeString("en-IN", { hour: "2-digit", hour12: true }).replace(" ", "")}
+                          </Box>
+                        );
+                      })}
+                    </Box>
                   </Box>
-                ))}
+                </Box>
                 {engineers.map((engineer) => (
-                  <Box className="timeline-row-fragment" key={engineer}>
+                  <Box className="hourly-timeline-row" key={engineer}>
                     <Box className="timeline-engineer">
                       <Box className="engineer-avatar small">{engineerInitials(engineer)}</Box>
                       <Box>
@@ -1458,19 +1524,18 @@ function OnCallManagementPage() {
                         <Typography variant="caption" color="text.secondary">{engineer}</Typography>
                       </Box>
                     </Box>
-                    {columns.map((day) => {
-                      const dayEntries = entries.filter((entry) => entry.name === engineer && overlapsDay(entry, day));
-                      return (
-                        <Box className={`timeline-cell ${day.toDateString() === now.toDateString() ? "today" : ""}`} key={`${engineer}-${day.toISOString()}`}>
-                          {dayEntries.map((entry, index) => (
-                            <Box className="shift-block" key={`${entry.name}-${entry.start}-${index}`}>
-                              <Typography variant="caption" fontWeight={800}>{entry.rotation || "On-call"}</Typography>
-                              <Typography variant="caption">{formatIstTime(entry.start)} - {formatIstTime(entry.end)}</Typography>
-                            </Box>
-                          ))}
-                        </Box>
-                      );
-                    })}
+                    <Box className="timeline-track" sx={{ width: `${axis.width}px` }}>
+                      {entries.filter((entry) => entry.name === engineer).map((entry, index) => {
+                        const style = timelineBarStyle(entry, axis);
+                        if (!style) return null;
+                        return (
+                          <Box className="shift-block" key={`${entry.name}-${entry.start}-${index}`} sx={style}>
+                            <Typography variant="caption" fontWeight={800}>{entry.rotation || "On-call"}</Typography>
+                            <Typography variant="caption">{formatIstTime(entry.start)} - {formatIstTime(entry.end)}</Typography>
+                          </Box>
+                        );
+                      })}
+                    </Box>
                   </Box>
                 ))}
               </Box>
@@ -1617,7 +1682,19 @@ function ShiftHandover({ mode }) {
           end: toApiDate(shiftRange.end),
         },
       });
-      setShiftAlerts(response.data);
+      const alerts = response.data;
+      const visibleOpenAlerts = alerts
+        .filter((alert) => (alert.status || "").toLowerCase() === "open")
+        .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))
+        .slice(0, 50);
+      const notesResponse = await api.post("/opsgenie/alert-notes", {
+        alert_ids: visibleOpenAlerts.map((alert) => alert.alert_id),
+      });
+      const notesByAlert = notesResponse.data.notes || {};
+      setShiftAlerts(alerts.map((alert) => ({
+        ...alert,
+        notes: notesByAlert[alert.alert_id] || alert.notes || null,
+      })));
     } catch (err) {
       setAlertError(err.response?.data?.detail || "Unable to load shift alerts");
     } finally {
@@ -1700,7 +1777,7 @@ function ShiftHandover({ mode }) {
 
           <DataTable
             rows={handoverAlerts.slice(0, 50)}
-            columns={["Alert ID", "Message", "Notes", "Priority", "Status", "Source", "Created At (IST)", "Owner"]}
+            columns={["Alert ID", "Message", "Notes", "Priority", "Status", "Source", "Created At (IST)", "Owner", "Open"]}
             render={(alert) => [
               alert.alert_id,
               alert.message,
@@ -1710,6 +1787,7 @@ function ShiftHandover({ mode }) {
               alert.source,
               formatIst(alert.created_at),
               alert.owner,
+              alert.alert_url ? <Button key={`${alert.alert_id}-open`} size="small" startIcon={<Launch />} href={alert.alert_url} target="_blank" rel="noreferrer">Opsgenie</Button> : "-",
             ]}
           />
         </Stack>

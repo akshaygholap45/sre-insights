@@ -19,6 +19,15 @@ class Alert(BaseModel):
     responders: list[str] = Field(default_factory=list)
     owner: str | None = None
     notes: str | None = None
+    alert_url: str | None = None
+
+
+class AlertNotesRequest(BaseModel):
+    alert_ids: list[str] = Field(default_factory=list, max_length=50)
+
+
+class AlertNotesResponse(BaseModel):
+    notes: dict[str, str] = Field(default_factory=dict)
 
 
 class DashboardSummary(BaseModel):

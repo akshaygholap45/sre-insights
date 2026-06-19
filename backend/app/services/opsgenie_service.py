@@ -1,5 +1,6 @@
 import logging
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from typing import Any
 
@@ -9,6 +10,7 @@ from requests import RequestException
 from app.config import settings
 from app.models.schemas import (
     Alert,
+    AlertNotesResponse,
     DashboardSummary,
     OnCallEngineer,
     OnCallResponse,
@@ -22,6 +24,8 @@ from app.models.schemas import (
 
 logger = logging.getLogger(__name__)
 ALERT_CACHE: dict[tuple[str | None, str | None], tuple[float, list[Alert]]] = {}
+ALERT_NOTES_CACHE: dict[str, tuple[float, str]] = {}
+ALERT_NOTES_CACHE_TTL_SECONDS = 300
 
 
 class OpsgenieService:
@@ -284,6 +288,50 @@ class OpsgenieService:
         alerts = self.get_alerts(start=start, end=end)
         return build_summary(alerts)
 
+    def get_alert_notes(self, alert_ids: list[str]) -> AlertNotesResponse:
+        unique_ids = list(dict.fromkeys(alert_id for alert_id in alert_ids if alert_id))[:50]
+        notes_by_alert: dict[str, str] = {}
+        missing_ids: list[str] = []
+        now = time.time()
+        for alert_id in unique_ids:
+            cached = ALERT_NOTES_CACHE.get(alert_id)
+            if cached and now - cached[0] <= ALERT_NOTES_CACHE_TTL_SECONDS:
+                if cached[1]:
+                    notes_by_alert[alert_id] = cached[1]
+            else:
+                missing_ids.append(alert_id)
+
+        with ThreadPoolExecutor(max_workers=min(5, len(missing_ids) or 1)) as executor:
+            futures = {executor.submit(self._get_notes_for_alert, alert_id): alert_id for alert_id in missing_ids}
+            for future in as_completed(futures):
+                alert_id = futures[future]
+                try:
+                    note_text = future.result()
+                except Exception as exc:
+                    logger.warning("Unable to load notes for alert %s: %s", alert_id, exc)
+                    note_text = None
+                if note_text is None:
+                    continue
+                ALERT_NOTES_CACHE[alert_id] = (time.time(), note_text)
+                if note_text:
+                    notes_by_alert[alert_id] = note_text
+        return AlertNotesResponse(notes=notes_by_alert)
+
+    def _get_notes_for_alert(self, alert_id: str) -> str | None:
+        payload = self._get(
+            f"/v2/alerts/{alert_id}/notes",
+            params={
+                "alertIdentifierType": "id",
+                "limit": 100,
+                "order": "desc",
+            },
+        )
+        if not payload:
+            return None
+        notes = payload.get("data", [])
+        formatted = [format_alert_note(note) for note in notes if isinstance(note, dict)]
+        return "\n\n".join(note for note in formatted if note)
+
     @staticmethod
     def _map_alert(item: dict[str, Any]) -> Alert:
         responders = [
@@ -306,7 +354,28 @@ class OpsgenieService:
             responders=responders,
             owner=item.get("owner"),
             notes=notes,
+            alert_url=build_alert_url(item.get("id")),
         )
+
+
+def build_alert_url(alert_id: str | None) -> str | None:
+    if not alert_id:
+        return None
+    app_base_url = "https://app.eu.opsgenie.com" if "api.eu.opsgenie.com" in settings.opsgenie_base_url else "https://app.opsgenie.com"
+    return f"{app_base_url}/alert/detail/{alert_id}/details"
+
+
+def format_alert_note(note: dict[str, Any]) -> str:
+    text = str(note.get("note") or note.get("message") or "").strip()
+    if not text:
+        return ""
+    owner = note.get("owner")
+    if isinstance(owner, dict):
+        owner = owner.get("name") or owner.get("username") or owner.get("email")
+    created_at = parse_datetime(note.get("createdAt"))
+    metadata = [str(owner).strip() if owner else "", created_at.isoformat() if created_at else ""]
+    prefix = " | ".join(value for value in metadata if value)
+    return f"{prefix}: {text}" if prefix else text
 
 
 def extract_alert_notes(item: dict[str, Any]) -> str | None:
@@ -367,7 +436,21 @@ def extract_timeline_entries(payload: Any) -> list[OnCallTimelineEntry]:
     deduped: dict[tuple[str, str | None, datetime | None, datetime | None], OnCallTimelineEntry] = {}
     for entry in entries:
         deduped[(entry.name, entry.rotation, entry.start, entry.end)] = entry
-    return sorted(deduped.values(), key=lambda entry: entry.start or datetime.min.replace(tzinfo=timezone.utc))
+    ordered = sorted(
+        deduped.values(),
+        key=lambda entry: (entry.name, entry.rotation or "", entry.start or datetime.min.replace(tzinfo=timezone.utc)),
+    )
+    merged: list[OnCallTimelineEntry] = []
+    for entry in ordered:
+        previous = merged[-1] if merged else None
+        same_assignment = previous and previous.name == entry.name and previous.rotation == entry.rotation
+        touches_previous = same_assignment and previous.end and entry.start and entry.start <= previous.end
+        if touches_previous:
+            if not previous.end or (entry.end and entry.end > previous.end):
+                previous.end = entry.end
+            continue
+        merged.append(entry)
+    return sorted(merged, key=lambda entry: entry.start or datetime.min.replace(tzinfo=timezone.utc))
 
 
 def is_rotation_like(value: dict[str, Any]) -> bool:

@@ -4,6 +4,8 @@ from fastapi import APIRouter, Query
 
 from app.models.schemas import (
     Alert,
+    AlertNotesRequest,
+    AlertNotesResponse,
     OnCallResponse,
     OnCallTimelineResponse,
     OpsgenieOverrideRequest,
@@ -36,6 +38,11 @@ def alerts(
     end: datetime | None = Query(default=None),
 ) -> list[Alert]:
     return service.get_alerts(start=start, end=end)
+
+
+@router.post("/alert-notes", response_model=AlertNotesResponse)
+def alert_notes(payload: AlertNotesRequest) -> AlertNotesResponse:
+    return service.get_alert_notes(payload.alert_ids)
 
 
 @router.get("/timeline", response_model=OnCallTimelineResponse)
