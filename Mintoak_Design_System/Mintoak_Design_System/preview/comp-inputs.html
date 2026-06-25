@@ -1,0 +1,22 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<link rel="stylesheet" href="_card.css">
+<style>
+.f{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
+.lab{font:500 12px/1 var(--font-sans);color:var(--color-text-secondary)}
+.inp{box-sizing:border-box;height:40px;font:400 14px/1 var(--font-sans);padding:0 12px;border:1px solid var(--color-border);border-radius:6px;background:#fff;color:var(--color-text);width:300px;outline:none}
+.inp::placeholder{color:var(--neutral-400)}
+.focus{border-color:var(--mint-600);box-shadow:0 0 0 3px rgba(128,195,65,.2)}
+.err{border-color:var(--color-error);box-shadow:0 0 0 3px rgba(220,38,38,.12)}
+.hint{font:400 11px/1 var(--font-sans)}
+.grid{display:flex;gap:32px}</style></head><body>
+<div class="grid">
+<div>
+<div class="f"><span class="lab">Merchant name</span><input class="inp" value="Sunrise Traders"></div>
+<div class="f"><span class="lab">Email</span><input class="inp focus" placeholder="you@business.com"></div>
+</div>
+<div>
+<div class="f"><span class="lab">VPA</span><input class="inp err" value="invalid@"><span class="hint" style="color:var(--color-error)">Enter a valid UPI ID</span></div>
+<div class="f"><span class="lab" style="color:var(--neutral-400)">GSTIN (locked)</span><input class="inp" disabled value="27AAAC…" style="background:var(--neutral-100)"></div>
+</div>
+</div></body></html>

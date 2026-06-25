@@ -10,6 +10,7 @@ services:
     volumes:
       - ./backend:/app
       - ./backend/app/data:/app/data
+      - ./backend/certs:/app/certs:ro
 
   frontend:
     build:

@@ -1,0 +1,16 @@
+/* Shared reset for Design System preview cards. Each card links this + ../colors_and_type.css */
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  font-family: var(--font-sans);
+  color: var(--color-text);
+  background: var(--color-bg);
+  padding: 20px 24px;
+  -webkit-font-smoothing: antialiased;
+}
+.row { display: flex; align-items: center; gap: 12px; }
+.col { display: flex; flex-direction: column; }
+.swatch { border-radius: 8px; border: 1px solid var(--color-split); }
+.mono { font-family: var(--font-mono); }
+.lbl { font-size: 11px; color: var(--color-text-tertiary); letter-spacing: .02em; }
+.val { font-family: var(--font-mono); font-size: 11px; color: var(--color-text-secondary); }

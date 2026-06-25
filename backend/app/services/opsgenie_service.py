@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 import requests
-from requests import RequestException
+from requests.exceptions import RequestException, SSLError
 
 from app.config import settings
 from app.models.schemas import (
@@ -32,12 +32,17 @@ class OpsgenieService:
     def __init__(self) -> None:
         self.base_url = settings.opsgenie_base_url.rstrip("/")
         self.timeout = settings.request_timeout_seconds
+        self.verify_ssl: bool | str = settings.opsgenie_ca_bundle or settings.opsgenie_verify_ssl
 
     @property
     def headers(self) -> dict[str, str]:
         if not settings.opsgenie_api_key:
             return {}
         return {"Authorization": f"GenieKey {settings.opsgenie_api_key}"}
+
+    @property
+    def request_options(self) -> dict[str, Any]:
+        return {"timeout": self.timeout, "verify": self.verify_ssl}
 
     def _get(self, path: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
         if not settings.opsgenie_api_key:
@@ -50,7 +55,7 @@ class OpsgenieService:
                     f"{self.base_url}{path}",
                     headers=self.headers,
                     params=params,
-                    timeout=self.timeout,
+                    **self.request_options,
                 )
                 if not response.ok:
                     logger.warning(
@@ -61,6 +66,13 @@ class OpsgenieService:
                     )
                     return {}
                 return response.json()
+            except SSLError as exc:
+                logger.warning(
+                    "Opsgenie TLS verification failed for %s. If your network uses a corporate root CA, mount it in the backend container and set OPSGENIE_CA_BUNDLE to that path. Error: %s",
+                    path,
+                    exc,
+                )
+                break
             except RequestException as exc:
                 if attempt == attempts:
                     logger.warning("Opsgenie request failed for %s after %s attempt(s): %s", path, attempts, exc)
@@ -79,12 +91,20 @@ class OpsgenieService:
                 headers={**self.headers, "Content-Type": "application/json"},
                 params=params,
                 json=payload,
-                timeout=self.timeout,
+                **self.request_options,
             )
             if not response.ok:
                 logger.warning("Opsgenie %s returned %s for %s: %s", method, response.status_code, path, response.text[:300])
                 return {"_error": response.text[:300], "_status": response.status_code}
             return response.json() if response.content else {}
+        except SSLError as exc:
+            logger.warning(
+                "Opsgenie TLS verification failed for %s %s. If your network uses a corporate root CA, mount it in the backend container and set OPSGENIE_CA_BUNDLE to that path. Error: %s",
+                method,
+                path,
+                exc,
+            )
+            return {"_error": str(exc)}
         except RequestException as exc:
             logger.warning("Opsgenie %s failed for %s: %s", method, path, exc)
             return {"_error": str(exc)}

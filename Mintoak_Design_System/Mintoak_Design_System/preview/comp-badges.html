@@ -1,0 +1,21 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<link rel="stylesheet" href="_card.css">
+<style>
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+.tag{font:500 12px/1 var(--font-sans);padding:4px 10px;border-radius:999px;display:inline-flex;align-items:center;gap:6px}
+.dot{width:6px;height:6px;border-radius:50%}
+.solid{background:var(--mint);color:#1C1C1C}
+.count{background:var(--color-error);color:#fff;border-radius:999px;padding:2px 7px;font:600 11px/1 var(--font-sans)}</style></head><body>
+<div class="row">
+ <span class="tag" style="background:var(--color-success-bg);color:var(--color-success)"><span class="dot" style="background:var(--color-success)"></span>Settled</span>
+ <span class="tag" style="background:var(--color-warning-bg);color:var(--color-warning)"><span class="dot" style="background:var(--color-warning)"></span>Pending</span>
+ <span class="tag" style="background:var(--color-error-bg);color:var(--color-error)"><span class="dot" style="background:var(--color-error)"></span>Failed</span>
+ <span class="tag" style="background:var(--color-info-bg);color:var(--color-info)">Info</span>
+</div>
+<div class="row">
+ <span class="tag solid">Active</span>
+ <span class="tag" style="background:var(--mint-tint);color:var(--mint-800)">UPI</span>
+ <span class="tag" style="background:var(--neutral-100);color:var(--color-text-secondary)">Default</span>
+ <span class="count">12</span>
+</div></body></html>

@@ -1,0 +1,102 @@
+/* ============================================================
+   MINTOAK × shadcn/ui — theme mapping
+   Drop this into your shadcn project's globals.css (replace the
+   default :root / .dark blocks). Maps Mintoak tokens onto the
+   shadcn CSS variable contract. Pair with Tailwind + Lato.
+   The Mintoak UI kits mirror these shadcn primitives:
+   Button · Card · Badge · Input · Sidebar · Sheet · Sonner(toast)
+   · Tabs · Table · Dialog · Avatar · Tooltip · DropdownMenu.
+   ============================================================ */
+
+:root {
+  --radius: 0.75rem;            /* 12px — buttons & cards */
+
+  --background: #FFFFFF;
+  --foreground: #1C1C1C;
+
+  --card: #FFFFFF;
+  --card-foreground: #1C1C1C;
+  --popover: #FFFFFF;
+  --popover-foreground: #1C1C1C;
+
+  --primary: #48821C;          /* Deep Mint — accessible CTA */
+  --primary-foreground: #FFFFFF;
+
+  --secondary: #F4F9F2;        /* Mint Tint */
+  --secondary-foreground: #2A4D1F;
+
+  --accent: #80C341;           /* Mint — bright accent fills */
+  --accent-foreground: #1C1C1C;
+
+  --muted: #F5F5F5;
+  --muted-foreground: #636059;
+
+  --destructive: #DC2626;
+  --destructive-foreground: #FFFFFF;
+
+  --border: #D9D9D9;
+  --input: #D9D9D9;
+  --ring: #80C341;             /* focus ring */
+
+  /* charts */
+  --chart-1: #2563EB;
+  --chart-2: #0F766E;
+  --chart-3: #D97706;
+  --chart-4: #7C3AED;
+  --chart-5: #4A8B27;
+
+  /* sidebar (light — content-first; see README) */
+  --sidebar: #FFFFFF;
+  --sidebar-foreground: #1C1C1C;
+  --sidebar-primary: #48821C;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #F4F9F2;
+  --sidebar-accent-foreground: #2A4D1F;
+  --sidebar-border: #F0F0F0;
+  --sidebar-ring: #80C341;
+}
+
+/* Dark theme = Forest Ink. Use deliberately — dark surfaces pull
+   attention to themselves, so reserve for focus moments (marketing
+   hero/footer, mobile balance header), not default app chrome. */
+.dark {
+  --background: #1A1F16;
+  --foreground: #F4F9F2;
+
+  --card: #222A1E;             /* Forest Ink */
+  --card-foreground: #F4F9F2;
+  --popover: #222A1E;
+  --popover-foreground: #F4F9F2;
+
+  --primary: #80C341;          /* Mint reads brighter on dark */
+  --primary-foreground: #14210B;
+
+  --secondary: #2C3525;
+  --secondary-foreground: #E6F2D8;
+
+  --accent: #87BD28;
+  --accent-foreground: #14210B;
+
+  --muted: #2C3525;
+  --muted-foreground: #A7B69A;
+
+  --destructive: #F2706B;
+  --destructive-foreground: #1A1F16;
+
+  --border: rgba(255,255,255,0.10);
+  --input: rgba(255,255,255,0.14);
+  --ring: #80C341;
+
+  --sidebar: #222A1E;
+  --sidebar-foreground: #F4F9F2;
+  --sidebar-primary: #80C341;
+  --sidebar-primary-foreground: #14210B;
+  --sidebar-accent: rgba(128,195,65,0.16);
+  --sidebar-accent-foreground: #80C341;
+  --sidebar-border: rgba(255,255,255,0.08);
+  --sidebar-ring: #80C341;
+}
+
+/* Tailwind font tokens — set Lato as the sans family in tailwind.config
+   (fontFamily.sans) or here: */
+:root { --font-sans: 'Lato', system-ui, sans-serif; --font-mono: 'IBM Plex Mono', monospace; }

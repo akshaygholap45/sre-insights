@@ -1,0 +1,26 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<link rel="stylesheet" href="_card.css">
+<style>
+.btn{font:500 14px/20px var(--font-sans);border-radius:8px;padding:7px 16px;border:1px solid transparent;display:inline-flex;align-items:center;gap:8px;cursor:pointer}
+.primary{background:var(--mint);color:#1C1C1C}
+.ghost{background:#fff;color:var(--mint-700);border-color:var(--mint-500)}
+.text{background:transparent;color:var(--mint-700)}
+.disabled{background:var(--neutral-200);color:var(--neutral-400);border-color:var(--neutral-200)}
+.danger{background:var(--color-error);color:#fff}
+.dghost{background:#fff;color:var(--color-error);border-color:var(--color-error)}
+.row{display:flex;gap:12px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
+.sm{padding:3px 12px;font-size:12px;border-radius:6px}
+.lg{padding:11px 20px;font-size:16px;border-radius:8px}
+.pill{border-radius:999px}
+.row{align-items:center}</style></head><body>
+<div class="row" style="margin-bottom:18px">
+ <button class="btn primary sm">Small</button>
+ <button class="btn primary">Default</button>
+ <button class="btn primary lg">Large</button>
+</div>
+<div class="row">
+ <button class="btn primary pill">Pill</button>
+ <button class="btn ghost pill">Pill ghost</button>
+ <button class="btn primary" style="padding:7px;width:34px;height:34px;justify-content:center">+</button>
+</div></body></html>

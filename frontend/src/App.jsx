@@ -67,15 +67,23 @@ import "./styles.css";
 
 const APP_NAME = "SRE Operational Insights";
 const DRAWER_WIDTH = 260;
-const COLORS = ["#4fd1c5", "#f6ad55", "#fc8181", "#63b3ed", "#b794f4", "#68d391"];
-const PRIORITY_COLORS = { P1: "#ef7d67", P2: "#f6c22d", P3: "#55c6dd", P4: "#8b7be1", P5: "#63b3ed" };
-const STATUS_COLORS = { open: "#63b3ed", acknowledged: "#f6c22d", closed: "#68d391" };
+const COLORS = ["#2563EB", "#0F766E", "#D97706", "#7C3AED", "#DC6B5F", "#4A8B27", "#246915", "#80C341"];
+const PRIORITY_COLORS = { P1: "#DC2626", P2: "#D97706", P3: "#2563EB", P4: "#7C3AED", P5: "#4A8B27" };
+const STATUS_COLORS = { open: "#2563EB", acknowledged: "#D97706", closed: "#2E7D32" };
 const NAV_ITEMS = ["Overview", "Opsgenie Alerts", "Team Task Summary", "Important URLs", "Jira Summary", "On-Call Management", "Shift Handover"];
 const SHIFT_OPTIONS = [
   { id: "morning", label: "Morning Shift", startHour: 7, startMinute: 30, endHour: 16, endMinute: 30, endDayOffset: 0 },
   { id: "afternoon", label: "Afternoon Shift", startHour: 15, startMinute: 0, endHour: 0, endMinute: 0, endDayOffset: 1 },
   { id: "night", label: "Night Shift", startHour: 22, startMinute: 30, endHour: 7, endMinute: 30, endDayOffset: 1 },
 ];
+const ROSTER_SHIFT_ROWS = [
+  { id: "morning", label: "Morning Shift", colorClass: "shift-morning" },
+  { id: "afternoon", label: "Afternoon Shift", colorClass: "shift-afternoon" },
+  { id: "night", label: "Night Shift", colorClass: "shift-night" },
+  { id: "reserved", label: "Reserved Shift", colorClass: "shift-reserved" },
+  { id: "reserved2", label: "Reserved Shift 2", colorClass: "shift-reserved" },
+];
+const ENGINEER_COLORS = ["#40C4FF", "#FFB74D", "#9FA8DA", "#81C784", "#F48FB1", "#4DB6AC", "#FFD54F", "#90CAF9", "#CE93D8", "#A5D6A7"];
 const DEFAULT_URLS = [
   { id: crypto.randomUUID(), title: "Grafana", url: "https://grafana.com", category: "Observability", description: "Metrics and service dashboards" },
   { id: crypto.randomUUID(), title: "Opsgenie", url: "https://app.opsgenie.com", category: "Incident Response", description: "Alerts, schedules, and escalations" },
@@ -211,6 +219,67 @@ function timelineBarStyle(entry, axis) {
     left: `${((start - axis.start) / 3600000) * TIMELINE_HOUR_WIDTH}px`,
     width: `${Math.max(28, ((end - start) / 3600000) * TIMELINE_HOUR_WIDTH)}px`,
   };
+}
+
+function currentTimeStyle(now, axis) {
+  if (!axis?.start || !axis?.end || now < axis.start || now > axis.end) return null;
+  return {
+    left: `${((now - axis.start) / 3600000) * TIMELINE_HOUR_WIDTH}px`,
+  };
+}
+
+function hashString(value) {
+  return String(value || "unknown").split("").reduce((hash, char) => ((hash << 5) - hash + char.charCodeAt(0)) | 0, 0);
+}
+
+function engineerColor(value) {
+  return ENGINEER_COLORS[Math.abs(hashString(value)) % ENGINEER_COLORS.length];
+}
+
+function classifyRosterShift(entry) {
+  const label = `${entry.rotation || ""} ${entry.name || ""}`.toLowerCase();
+  if (label.includes("reserved") && (label.includes("2") || label.includes("secondary"))) return "reserved2";
+  if (label.includes("reserved")) return "reserved";
+  if (label.includes("morning")) return "morning";
+  if (label.includes("afternoon")) return "afternoon";
+  if (label.includes("night")) return "night";
+
+  const start = new Date(entry.start);
+  const minutes = start.toLocaleTimeString("en-IN", {
+    timeZone: "Asia/Kolkata",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).split(":").reduce((total, part, index) => total + Number(part) * (index === 0 ? 60 : 1), 0);
+
+  if (minutes >= 420 && minutes <= 540) return "morning";
+  if (minutes >= 870 && minutes <= 960) return "afternoon";
+  if (minutes >= 1290 || minutes <= 90) return "night";
+  return "reserved";
+}
+
+function buildRosterRows(entries) {
+  const rows = ROSTER_SHIFT_ROWS.map((shift) => ({ ...shift, entries: [], lanes: 1, height: 92 }));
+  const rowMap = Object.fromEntries(rows.map((row) => [row.id, row]));
+
+  entries
+    .filter((entry) => entry.start && entry.end)
+    .sort((a, b) => new Date(a.start) - new Date(b.start))
+    .forEach((entry) => {
+      const row = rowMap[classifyRosterShift(entry)] || rowMap.reserved;
+      const start = new Date(entry.start).getTime();
+      const end = new Date(entry.end).getTime();
+      const lanes = row._laneEnds || [];
+      let lane = lanes.findIndex((laneEnd) => start >= laneEnd);
+      if (lane === -1) lane = lanes.length;
+      lanes[lane] = end;
+      row._laneEnds = lanes;
+      row.lanes = Math.max(row.lanes, lanes.length);
+      row.height = Math.max(92, row.lanes * 68 + 24);
+      row.entries.push({ ...entry, lane });
+    });
+
+  return rows.filter((row) => row.entries.length).map(({ _laneEnds, ...row }) => row);
 }
 
 function dateKey(value, timeZone) {
@@ -411,37 +480,38 @@ function App() {
   const theme = useMemo(() => createTheme({
     palette: {
       mode,
-      primary: { main: "#38dac7", dark: "#129b91", contrastText: "#03131f" },
-      secondary: { main: "#ffb45c", dark: "#c76b20", contrastText: "#140d05" },
-      success: { main: "#70e2a1" },
-      warning: { main: "#ffc94a" },
-      error: { main: "#ff7a7a" },
-      background: mode === "dark" ? { default: "#050b14", paper: "#0c1726" } : { default: "#eef5f8", paper: "#ffffff" },
-      text: mode === "dark" ? { primary: "#eef7ff", secondary: "#9fb2c8" } : { primary: "#0b1726", secondary: "#516274" },
+      primary: { main: mode === "dark" ? "#80C341" : "#48821C", dark: "#3A6A1E", contrastText: "#FFFFFF" },
+      secondary: { main: "#80C341", dark: "#66A332", contrastText: "#1C1C1C" },
+      success: { main: "#2E7D32" },
+      warning: { main: "#D97706" },
+      error: { main: "#DC2626" },
+      info: { main: "#2563EB" },
+      background: mode === "dark" ? { default: "#0F1115", paper: "#171A20" } : { default: "#F5F5F5", paper: "#FFFFFF" },
+      text: mode === "dark" ? { primary: "#F5F7FA", secondary: "#A8B0BC" } : { primary: "#1C1C1C", secondary: "#636059" },
     },
     typography: {
-      fontFamily: "'Space Grotesk', 'Segoe UI', sans-serif",
-      h4: { fontWeight: 800, letterSpacing: "-0.04em" },
-      h5: { fontWeight: 800, letterSpacing: "-0.03em" },
-      h6: { fontWeight: 750, letterSpacing: "-0.02em" },
-      button: { fontWeight: 750, textTransform: "none" },
+      fontFamily: "'Lato', -apple-system, 'Segoe UI', system-ui, sans-serif",
+      fontSize: 14,
+      h4: { fontWeight: 700, fontSize: "1.875rem", lineHeight: 1.2, letterSpacing: "-0.01em" },
+      h5: { fontWeight: 700, fontSize: "1.5rem", lineHeight: 1.3, letterSpacing: "-0.01em" },
+      h6: { fontWeight: 700, fontSize: "1rem", lineHeight: 1.5 },
+      button: { fontWeight: 700, textTransform: "none" },
     },
-    shape: { borderRadius: 18 },
+    shape: { borderRadius: 8 },
     components: {
-      MuiCard: { styleOverrides: { root: { backgroundImage: "none" } } },
+      MuiCard: { styleOverrides: { root: { backgroundImage: "none", borderRadius: 12 } } },
       MuiButton: {
         styleOverrides: {
-          root: { borderRadius: 14, boxShadow: "none" },
+          root: { borderRadius: 12, boxShadow: "none", minHeight: 36 },
           contained: {
-            background: "linear-gradient(135deg, #38dac7, #ffb45c)",
-            color: "#06111d",
-            boxShadow: "0 16px 34px rgba(56, 218, 199, 0.22)",
+            background: mode === "dark" ? "#80C341" : "#48821C",
+            color: mode === "dark" ? "#14210B" : "#FFFFFF",
           },
         },
       },
       MuiChip: {
         styleOverrides: {
-          root: { borderRadius: 12, fontWeight: 700 },
+          root: { borderRadius: 999, fontWeight: 700 },
         },
       },
       MuiTextField: {
@@ -456,6 +526,8 @@ function App() {
 
   useEffect(() => {
     localStorage.setItem("sre-theme", mode);
+    document.body.classList.toggle("mintoak-dark", mode === "dark");
+    return () => document.body.classList.remove("mintoak-dark");
   }, [mode]);
 
   useEffect(() => saveStored("sre-sidebar-collapsed", sidebarCollapsed), [sidebarCollapsed]);
@@ -509,7 +581,9 @@ function App() {
   const drawer = (
     <Box className={sidebarCollapsed ? "sidebar collapsed" : "sidebar"}>
       <Box className="brand">
-        <Box className="logo">SRE</Box>
+        <Box className="logo">
+          <img src={mode === "dark" ? "/mintoak/logo/mintoak-symbol-white.svg" : "/mintoak/logo/mintoak-symbol-green.svg"} alt="Mintoak" />
+        </Box>
         <Box className="brand-copy">
           <Typography variant="h6">{APP_NAME}</Typography>
           <Typography variant="caption">Operational Command Center</Typography>
@@ -546,7 +620,9 @@ function App() {
               <Menu />
             </IconButton>
             <Box className="topbar-title">
-              <Box className="logo small">SRE</Box>
+              <Box className="logo small">
+                <img src={mode === "dark" ? "/mintoak/logo/mintoak-symbol-white.svg" : "/mintoak/logo/mintoak-symbol-green.svg"} alt="Mintoak" />
+              </Box>
               <Box>
                 <Typography variant="h6">{APP_NAME}</Typography>
                 <Typography variant="caption">Dashboard Name: {active}</Typography>
@@ -823,7 +899,7 @@ function ChartCard({ title, data, type, stackKeys = [], colors = {}, defaultHeig
                   <YAxis allowDecimals={false} />
                   <Tooltip />
                   <Legend />
-                  <Line dataKey="value" stroke="#4fd1c5" strokeWidth={3} />
+                  <Line dataKey="value" stroke="#4A8B27" strokeWidth={3} />
                 </LineChart>
               ) : type === "stacked" ? (
                 <BarChart data={safeData} margin={{ top: 12, right: 26, bottom: 24, left: 8 }}>
@@ -841,7 +917,7 @@ function ChartCard({ title, data, type, stackKeys = [], colors = {}, defaultHeig
                   {horizontal ? <YAxis type="category" dataKey="name" width={150} /> : <YAxis allowDecimals={false} />}
                   <Tooltip />
                   <Legend />
-                  <Bar dataKey="value" fill="#4fd1c5" radius={[8, 8, 0, 0]} />
+                  <Bar dataKey="value" fill="#4A8B27" radius={[6, 6, 0, 0]} />
                 </BarChart>
               )}
             </ResponsiveContainer>
@@ -1282,11 +1358,14 @@ function OnCallManagementPage() {
   const [overrideOpen, setOverrideOpen] = useState(false);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [overrideForm, setOverrideForm] = useState({ user: "", start: "", end: "", alias: "", rotation_id: "" });
+  const [nowTick, setNowTick] = useState(() => new Date());
   const axis = timelineAxis(range.start, range.end);
   const entries = timeline?.entries || [];
   const engineers = [...new Set(entries.map((entry) => entry.name).filter(Boolean))].sort();
+  const rosterRows = buildRosterRows(entries);
   const selectedScheduleMeta = schedules.find((schedule) => schedule.id === selectedSchedule);
-  const now = new Date();
+  const now = nowTick;
+  const nowLine = currentTimeStyle(now, axis);
   const currentEntries = entries.filter((entry) => (!entry.start || new Date(entry.start) <= now) && (!entry.end || new Date(entry.end) >= now));
   const upcomingEntries = entries
     .filter((entry) => entry.start && new Date(entry.start) > now)
@@ -1398,6 +1477,11 @@ function OnCallManagementPage() {
     return () => clearInterval(timer);
   }, [selectedSchedule, range.start, range.end]);
 
+  useEffect(() => {
+    const timer = setInterval(() => setNowTick(new Date()), 30000);
+    return () => clearInterval(timer);
+  }, []);
+
   return (
     <Stack spacing={2.5}>
       <Card className="oncall-command-card">
@@ -1488,9 +1572,9 @@ function OnCallManagementPage() {
           </Stack>
           {!entries.length ? <EmptyState text="No timeline entries returned for this schedule and range." /> : (
             <Box className="timeline-wrap">
-              <Box className="hourly-timeline" sx={{ width: `${190 + axis.width}px` }}>
+              <Box className="hourly-timeline roster-timeline" sx={{ width: `${190 + axis.width}px` }}>
                 <Box className="hourly-timeline-header">
-                  <Box className="timeline-engineer-head">Engineer</Box>
+                  <Box className="timeline-engineer-head">Shift</Box>
                   <Box className="timeline-axis" sx={{ width: `${axis.width}px` }}>
                     <Box className="timeline-day-bands">
                       {axis.days.map((day) => (
@@ -1515,23 +1599,32 @@ function OnCallManagementPage() {
                     </Box>
                   </Box>
                 </Box>
-                {engineers.map((engineer) => (
-                  <Box className="hourly-timeline-row" key={engineer}>
-                    <Box className="timeline-engineer">
-                      <Box className="engineer-avatar small">{engineerInitials(engineer)}</Box>
+                {rosterRows.map((row) => (
+                  <Box className="hourly-timeline-row" key={row.id}>
+                    <Box className="timeline-engineer roster-shift-label" sx={{ minHeight: `${row.height}px` }}>
+                      <Box className={`shift-dot ${row.colorClass}`} />
                       <Box>
-                        <Typography variant="body2" fontWeight={800}>{displayEngineer(engineer)}</Typography>
-                        <Typography variant="caption" color="text.secondary">{engineer}</Typography>
+                        <Typography variant="body2" fontWeight={900}>{row.label}</Typography>
+                        <Typography variant="caption" color="text.secondary">{row.entries.length} assignment{row.entries.length === 1 ? "" : "s"}</Typography>
                       </Box>
                     </Box>
-                    <Box className="timeline-track" sx={{ width: `${axis.width}px` }}>
-                      {entries.filter((entry) => entry.name === engineer).map((entry, index) => {
+                    <Box className="timeline-track roster-track" sx={{ width: `${axis.width}px`, minHeight: `${row.height}px` }}>
+                      {nowLine && <Box className="current-time-line" sx={nowLine}><span>Now</span></Box>}
+                      {row.entries.map((entry, index) => {
                         const style = timelineBarStyle(entry, axis);
                         if (!style) return null;
                         return (
-                          <Box className="shift-block" key={`${entry.name}-${entry.start}-${index}`} sx={style}>
-                            <Typography variant="caption" fontWeight={800}>{entry.rotation || "On-call"}</Typography>
-                            <Typography variant="caption">{formatIstTime(entry.start)} - {formatIstTime(entry.end)}</Typography>
+                          <Box
+                            className={`shift-block roster-shift-block ${row.colorClass}`}
+                            key={`${entry.name}-${entry.start}-${index}`}
+                            sx={{ ...style, top: `${12 + (entry.lane || 0) * 68}px`, "--engineer-color": engineerColor(entry.name) }}
+                          >
+                            <Box className="shift-engineer-avatar">{engineerInitials(entry.name)}</Box>
+                            <Box className="shift-block-copy">
+                              <Typography variant="caption" fontWeight={900}>{displayEngineer(entry.name)}</Typography>
+                              <Typography variant="caption" fontWeight={700}>{entry.rotation || row.label}</Typography>
+                              <Typography variant="caption">{formatIstTime(entry.start)} - {formatIstTime(entry.end)}</Typography>
+                            </Box>
                           </Box>
                         );
                       })}

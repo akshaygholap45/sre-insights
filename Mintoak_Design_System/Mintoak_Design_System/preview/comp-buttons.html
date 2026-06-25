@@ -1,0 +1,23 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<link rel="stylesheet" href="_card.css">
+<style>
+.btn{font:700 14px/20px var(--font-sans);border-radius:12px;padding:8px 18px;border:1px solid transparent;display:inline-flex;align-items:center;gap:8px;cursor:pointer}
+.primary{background:var(--mint);color:#1C1C1C}
+.ghost{background:#fff;color:var(--mint-700);border-color:var(--mint-500)}
+.text{background:transparent;color:var(--mint-700)}
+.disabled{background:var(--neutral-200);color:var(--neutral-400);border-color:var(--neutral-200)}
+.danger{background:var(--color-error);color:#fff}
+.dghost{background:#fff;color:var(--color-error);border-color:var(--color-error)}
+.row{display:flex;gap:12px;align-items:center;margin-bottom:14px;flex-wrap:wrap}</style></head><body>
+<div class="row">
+ <button class="btn primary">Primary</button>
+ <button class="btn ghost">Secondary</button>
+ <button class="btn text">Text</button>
+ <button class="btn disabled">Disabled</button>
+</div>
+<div class="row">
+ <button class="btn danger">Delete</button>
+ <button class="btn dghost">Cancel</button>
+ <button class="btn primary">Accept payment →</button>
+</div></body></html>

@@ -1,0 +1,38 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<link rel="stylesheet" href="_card.css">
+<style>
+body{padding:22px 24px}
+.head{display:flex;align-items:baseline;gap:10px;margin-bottom:18px}
+.title{font:700 15px/1 var(--font-sans);color:var(--color-text)}
+.note{font:400 12px/1 var(--font-sans);color:var(--color-text-tertiary)}
+.grid{display:grid;grid-template-columns:repeat(13,1fr);gap:14px 8px}
+.ic{display:flex;flex-direction:column;align-items:center;gap:7px}
+.ic i{color:var(--color-text-secondary)}
+.ic span{font:400 9px/1 var(--font-sans);color:var(--color-text-tertiary);text-align:center;white-space:nowrap}
+.sizes{display:flex;align-items:flex-end;gap:18px;margin-top:20px;padding-top:16px;border-top:1px solid var(--color-border-secondary)}
+.sz{display:flex;flex-direction:column;align-items:center;gap:6px}
+.sz span{font:400 10px/1 var(--font-mono);color:var(--color-text-tertiary)}
+.accent i{color:var(--mint-700)}
+</style></head><body>
+<div class="head"><span class="title">Lucide</span><span class="note">— 1.75px stroke · 24px grid · rounded joins · inherits <code style="font-family:var(--font-mono)">currentColor</code></span></div>
+<div class="grid" id="g"></div>
+<div class="sizes">
+  <div class="sz"><i data-lucide="store" style="width:16px;height:16px"></i><span>16</span></div>
+  <div class="sz"><i data-lucide="store" style="width:20px;height:20px"></i><span>20</span></div>
+  <div class="sz"><i data-lucide="store" style="width:24px;height:24px"></i><span>24</span></div>
+  <div class="sz accent"><i data-lucide="store" style="width:28px;height:28px"></i><span>brand</span></div>
+  <span class="note" style="margin-left:6px;align-self:center">Common sizes — paired with color for status, never color alone.</span>
+</div>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<script>
+  const names = ["layout-dashboard","store","arrow-left-right","banknote","chart-pie","settings","life-buoy","search","bell","qr-code","smartphone","credit-card","indian-rupee","user","house","check","plus","trending-up","circle-alert","file-text","shield-check","radio","zap","calendar","rotate-ccw","speaker","chevron-right","sliders-horizontal","message-square","building-2","landmark","circle-help","wifi","battery-full","play","arrow-right","x","chevrons-up-down","user-plus"];
+  const g = document.getElementById("g");
+  names.forEach(n => {
+    const d = document.createElement("div"); d.className = "ic";
+    d.innerHTML = `<i data-lucide="${n}"></i><span>${n}</span>`;
+    g.appendChild(d);
+  });
+  lucide.createIcons({ attrs: { width: 22, height: 22, "stroke-width": 1.75 } });
+</script>
+</body></html>

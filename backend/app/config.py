@@ -23,6 +23,8 @@ class Settings(BaseSettings):
     opsgenie_alert_max_records: int = Field(default=2000, alias="OPSGENIE_ALERT_MAX_RECORDS")
     opsgenie_cache_ttl_seconds: int = Field(default=60, alias="OPSGENIE_CACHE_TTL_SECONDS")
     opsgenie_request_retries: int = Field(default=2, alias="OPSGENIE_REQUEST_RETRIES")
+    opsgenie_verify_ssl: bool = Field(default=True, alias="OPSGENIE_VERIFY_SSL")
+    opsgenie_ca_bundle: str | None = Field(default=None, alias="OPSGENIE_CA_BUNDLE")
     google_chat_webhook_url: str | None = Field(default=None, alias="GOOGLE_CHAT_WEBHOOK_URL")
     jira_base_url: str | None = Field(default=None, alias="JIRA_BASE_URL")
     jira_email: str | None = Field(default=None, alias="JIRA_EMAIL")
@@ -49,6 +51,10 @@ class Settings(BaseSettings):
             warnings.append("OPSGENIE_API_KEY is not set; Opsgenie endpoints will return empty fallback data")
         if self.opsgenie_schedule_identifier_type not in {"id", "name"}:
             warnings.append("OPSGENIE_SCHEDULE_IDENTIFIER_TYPE should be id or name")
+        if self.opsgenie_ca_bundle and not Path(self.opsgenie_ca_bundle).exists():
+            warnings.append(f"OPSGENIE_CA_BUNDLE does not exist: {self.opsgenie_ca_bundle}")
+        if not self.opsgenie_verify_ssl:
+            warnings.append("OPSGENIE_VERIFY_SSL=false disables TLS certificate verification and should only be used for local debugging")
         if not self.google_chat_webhook_url:
             warnings.append("GOOGLE_CHAT_WEBHOOK_URL is not set; shift handover send will be disabled")
         if not all([self.jira_base_url, self.jira_email, self.jira_api_token]):

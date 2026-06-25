@@ -77,6 +77,8 @@ OPSGENIE_ALERT_PAGE_LIMIT=100
 OPSGENIE_ALERT_MAX_RECORDS=2000
 OPSGENIE_CACHE_TTL_SECONDS=60
 OPSGENIE_REQUEST_RETRIES=2
+OPSGENIE_VERIFY_SSL=true
+OPSGENIE_CA_BUNDLE=
 GOOGLE_CHAT_WEBHOOK_URL=
 JIRA_BASE_URL=https://your-domain.atlassian.net
 JIRA_EMAIL=
@@ -124,6 +126,15 @@ If you see Opsgenie `429` rate-limit warnings, reduce `OPSGENIE_ALERT_MAX_RECORD
 The backend caches alert results per selected time range for `OPSGENIE_CACHE_TTL_SECONDS`. This prevents duplicate frontend refreshes from repeatedly fetching the same Opsgenie pages.
 
 If Opsgenie alert reads occasionally time out, increase `REQUEST_TIMEOUT_SECONDS` to `40` or `60`, keep `OPSGENIE_REQUEST_RETRIES=2`, and consider reducing `OPSGENIE_ALERT_MAX_RECORDS` for very large date ranges.
+
+If Docker logs show `SSLCertVerificationError` for Opsgenie requests, rebuild the backend image so the container gets the OS CA bundle:
+
+```bash
+docker compose build backend
+docker compose up -d backend
+```
+
+If your network uses a corporate SSL inspection proxy, place your organization root CA under `backend/certs`, then set `OPSGENIE_CA_BUNDLE` to the in-container file path, for example `OPSGENIE_CA_BUNDLE=/app/certs/company-root-ca.pem`. Keep `OPSGENIE_VERIFY_SSL=true`; use `false` only for short local debugging.
 
 ## Shift Handover
 
@@ -370,6 +381,7 @@ If on-call data does not show:
 - Confirm `DEFAULT_SCHEDULE_ID` is correct.
 - Use `OPSGENIE_SCHEDULE_IDENTIFIER_TYPE=name` for schedule names.
 - Use `OPSGENIE_SCHEDULE_IDENTIFIER_TYPE=id` for schedule UUIDs.
+- If logs show `SSLCertVerificationError`, rebuild the backend image and configure `OPSGENIE_CA_BUNDLE` if your company uses a private root CA.
 
 If only a small number of alerts show:
 
