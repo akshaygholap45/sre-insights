@@ -1770,3 +1770,388 @@ body {
     border-radius: var(--radius-12);
   }
 }
+
+/* Operations Command Center horizontal navigation redesign */
+.command-topbar,
+.light .command-topbar,
+.dark .command-topbar {
+  position: sticky !important;
+  top: 0;
+  left: 0 !important;
+  width: 100% !important;
+  z-index: 1200;
+  border-bottom: 1px solid rgba(128, 195, 65, 0.18);
+  background:
+    linear-gradient(135deg, rgba(15, 17, 21, 0.84), rgba(23, 26, 32, 0.72)),
+    radial-gradient(circle at 15% 0%, rgba(128, 195, 65, 0.16), transparent 28rem) !important;
+  backdrop-filter: blur(22px) saturate(160%);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.18) !important;
+}
+
+.light .command-topbar {
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.86), rgba(245, 248, 241, 0.74)),
+    radial-gradient(circle at 15% 0%, rgba(128, 195, 65, 0.14), transparent 28rem) !important;
+}
+
+.command-toolbar {
+  min-height: 68px !important;
+  gap: 1rem;
+  padding-inline: clamp(0.85rem, 1.8vw, 1.8rem) !important;
+}
+
+.command-brand {
+  flex: 0 0 auto;
+  max-width: 280px;
+}
+
+.command-brand h6 {
+  font-size: clamp(1rem, 1.15vw, 1.25rem);
+}
+
+.top-nav-links {
+  flex: 1 1 auto;
+  min-width: 0;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.top-nav-item {
+  min-width: auto !important;
+  padding: 0.45rem 0.75rem !important;
+  color: inherit !important;
+  border: 1px solid transparent !important;
+  border-radius: 999px !important;
+  white-space: nowrap;
+}
+
+.top-nav-item:hover,
+.top-nav-item.active {
+  background: rgba(128, 195, 65, 0.12) !important;
+  border-color: rgba(128, 195, 65, 0.28) !important;
+}
+
+.top-nav-item.active {
+  box-shadow: inset 0 0 0 1px rgba(128, 195, 65, 0.18), 0 8px 22px rgba(128, 195, 65, 0.12);
+}
+
+.command-actions {
+  flex: 0 0 auto;
+  margin-left: 0;
+}
+
+.global-search {
+  width: clamp(180px, 17vw, 320px);
+}
+
+.global-search .MuiInputBase-root {
+  min-height: 36px;
+  border-radius: 999px;
+}
+
+.command-mobile-menu {
+  display: none !important;
+}
+
+.mobile-nav-panel {
+  padding: 1rem;
+  background: var(--dark-surface);
+}
+
+.light .mobile-nav-panel {
+  background: var(--color-bg);
+}
+
+.command-content,
+.content.command-content {
+  width: 100% !important;
+  max-width: none;
+  margin-left: 0 !important;
+  padding: clamp(1rem, 1.6vw, 1.75rem);
+  overflow-x: hidden;
+}
+
+.command-center {
+  width: 100%;
+}
+
+.command-hero-card,
+.command-filter-card,
+.command-panel,
+.command-kpi-card {
+  border: 1px solid rgba(128, 195, 65, 0.18) !important;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.025)),
+    rgba(23, 26, 32, 0.78) !important;
+  backdrop-filter: blur(18px) saturate(140%);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.16) !important;
+}
+
+.light .command-hero-card,
+.light .command-filter-card,
+.light .command-panel,
+.light .command-kpi-card {
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.86), rgba(245, 248, 241, 0.7)),
+    rgba(255, 255, 255, 0.76) !important;
+  border-color: rgba(72, 130, 28, 0.14) !important;
+  box-shadow: 0 18px 46px rgba(28, 45, 20, 0.08) !important;
+}
+
+.command-filter-search {
+  flex: 1 1 360px;
+  min-width: 220px;
+}
+
+.command-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(178px, 1fr));
+  gap: clamp(0.75rem, 1vw, 1rem);
+}
+
+.command-kpi-card {
+  min-height: 148px;
+  overflow: hidden;
+  position: relative;
+}
+
+.command-kpi-card::after {
+  content: "";
+  position: absolute;
+  inset: auto -20% -55% auto;
+  width: 9rem;
+  height: 9rem;
+  border-radius: 50%;
+  background: rgba(128, 195, 65, 0.12);
+}
+
+.command-kpi-card h4 {
+  margin-top: 1.1rem;
+  font-size: clamp(1.35rem, 1.9vw, 2.1rem);
+  font-weight: 900;
+  letter-spacing: -0.035em;
+}
+
+.command-kpi-icon {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  color: #101820;
+  font-weight: 900;
+  background: var(--mint);
+}
+
+.command-trend-chip {
+  height: 24px !important;
+  font-size: 0.68rem !important;
+}
+
+.tone-critical .command-kpi-icon,
+.priority-chip.p1 {
+  background: #FCA5A5 !important;
+  color: #7F1D1D !important;
+}
+
+.tone-high .command-kpi-icon,
+.priority-chip.p2 {
+  background: #FDBA74 !important;
+  color: #7C2D12 !important;
+}
+
+.tone-medium .command-kpi-icon,
+.priority-chip.p3 {
+  background: #BFDBFE !important;
+  color: #1E3A8A !important;
+}
+
+.tone-low .command-kpi-icon,
+.priority-chip.p4,
+.priority-chip.p5 {
+  background: #BBF7D0 !important;
+  color: #14532D !important;
+}
+
+.tone-warning .command-kpi-icon {
+  background: #FDE68A;
+  color: #713F12;
+}
+
+.tone-success .command-kpi-icon,
+.tone-oncall .command-kpi-icon {
+  background: #86EFAC;
+  color: #14532D;
+}
+
+.command-layout-grid {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.9fr) minmax(0, 2.2fr);
+  gap: clamp(0.85rem, 1.2vw, 1.25rem);
+  align-items: stretch;
+}
+
+.command-layout-grid.secondary {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.command-panel {
+  min-width: 0;
+}
+
+.active-alerts-command {
+  grid-row: span 2;
+}
+
+.command-table-wrap {
+  width: 100%;
+  overflow: hidden;
+}
+
+.command-alert-table {
+  width: 100%;
+  table-layout: fixed;
+}
+
+.command-alert-table th,
+.command-alert-table td {
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border-color: rgba(128, 195, 65, 0.12) !important;
+}
+
+.command-alert-table th:nth-child(3),
+.command-alert-table td:nth-child(3) {
+  width: 22%;
+  max-width: none;
+}
+
+.quick-link-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(126px, 1fr));
+  gap: 0.65rem;
+}
+
+.heatmap-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 42px;
+  padding: 0.65rem 0.8rem;
+  border-radius: 12px;
+  background: rgba(128, 195, 65, calc(0.08 + (var(--heat) * 0.28)));
+  border: 1px solid rgba(128, 195, 65, calc(0.12 + (var(--heat) * 0.24)));
+}
+
+.activity-item {
+  position: relative;
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border-radius: 12px;
+  background: rgba(128, 195, 65, 0.06);
+}
+
+.activity-dot {
+  flex: 0 0 auto;
+  width: 10px;
+  height: 10px;
+  margin-top: 0.35rem;
+  border-radius: 50%;
+  background: #EF4444;
+  box-shadow: 0 0 0 6px rgba(239, 68, 68, 0.14);
+}
+
+.live-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: #22C55E;
+  box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.55);
+  animation: livePulse 1.6s infinite;
+}
+
+@keyframes livePulse {
+  0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.55); }
+  70% { box-shadow: 0 0 0 10px rgba(34, 197, 94, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+}
+
+.alert-detail-drawer {
+  color: var(--dark-text) !important;
+  background: var(--dark-surface) !important;
+}
+
+.light .alert-detail-drawer,
+body:not(.mintoak-dark) .alert-detail-drawer {
+  color: var(--color-text) !important;
+  background: var(--color-bg) !important;
+}
+
+@media (min-width: 1920px) {
+  .command-kpi-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 1500px) {
+  .top-nav-item {
+    padding-inline: 0.55rem !important;
+    font-size: 0.82rem !important;
+  }
+
+  .global-search {
+    display: none;
+  }
+}
+
+@media (max-width: 1199px) {
+  .top-nav-links {
+    display: none !important;
+  }
+
+  .command-mobile-menu {
+    display: inline-flex !important;
+    margin-left: auto !important;
+  }
+
+  .command-actions {
+    margin-left: 0;
+  }
+
+  .command-layout-grid,
+  .command-layout-grid.secondary {
+    grid-template-columns: 1fr;
+  }
+
+  .active-alerts-command {
+    grid-row: auto;
+  }
+}
+
+@media (max-width: 760px) {
+  .command-toolbar {
+    flex-wrap: wrap;
+    min-height: 78px !important;
+  }
+
+  .clock-stack.command-actions .MuiChip-root {
+    display: none;
+  }
+
+  .command-kpi-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .command-content,
+  .content.command-content {
+    padding: 0.85rem;
+  }
+
+  .command-alert-table th:nth-child(n+5),
+  .command-alert-table td:nth-child(n+5) {
+    display: none;
+  }
+}

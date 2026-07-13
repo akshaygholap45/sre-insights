@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Alert,
   AppBar,
+  Badge,
   Box,
   Button,
   Card,
@@ -36,6 +37,7 @@ import {
 } from "@mui/material";
 import {
   Add,
+  AccountCircle,
   CheckCircle,
   DarkMode,
   Delete,
@@ -45,7 +47,9 @@ import {
   Launch,
   LightMode,
   Menu,
+  Notifications,
   Refresh,
+  Search,
 } from "@mui/icons-material";
 import {
   Bar,
@@ -65,12 +69,12 @@ import {
 import { api } from "./api";
 import "./styles.css";
 
-const APP_NAME = "SRE Operational Insights";
+const APP_NAME = "SRE Operations Center";
 const DRAWER_WIDTH = 260;
 const COLORS = ["#2563EB", "#0F766E", "#D97706", "#7C3AED", "#DC6B5F", "#4A8B27", "#246915", "#80C341"];
 const PRIORITY_COLORS = { P1: "#DC2626", P2: "#D97706", P3: "#2563EB", P4: "#7C3AED", P5: "#4A8B27" };
 const STATUS_COLORS = { open: "#2563EB", acknowledged: "#D97706", closed: "#2E7D32" };
-const NAV_ITEMS = ["Overview", "Opsgenie Alerts", "Team Task Summary", "Important URLs", "Jira Summary", "On-Call Management", "Shift Handover"];
+const NAV_ITEMS = ["Overview", "Alerts", "On-call", "Schedules", "Overrides", "Analytics", "Shift Handover", "Runbooks", "Settings"];
 const SHIFT_OPTIONS = [
   { id: "morning", label: "Morning Shift", startHour: 7, startMinute: 30, endHour: 16, endMinute: 30, endDayOffset: 0 },
   { id: "afternoon", label: "Afternoon Shift", startHour: 15, startMinute: 0, endHour: 0, endMinute: 0, endDayOffset: 1 },
@@ -419,6 +423,40 @@ function topTags(alerts) {
   return countBy(rows, "tag").sort((a, b) => b.value - a.value).slice(0, 10);
 }
 
+function alertService(alert) {
+  const tags = alert.tags || [];
+  const taggedService = tags.find((tag) => /^service[:=]/i.test(tag));
+  if (taggedService) return taggedService.split(/[:=]/).slice(1).join(":") || taggedService;
+  const source = alert.source || "";
+  if (source && source !== "unknown") return source;
+  const message = alert.message || alert.alias || "";
+  return message.split(/[\s:|-]+/).find((part) => part.length > 2) || "Unknown";
+}
+
+function alertTeam(alert) {
+  const tags = alert.tags || [];
+  const taggedTeam = tags.find((tag) => /^team[:=]/i.test(tag));
+  if (taggedTeam) return taggedTeam.split(/[:=]/).slice(1).join(":") || taggedTeam;
+  return alert.owner || alert.responders?.[0] || "Unassigned";
+}
+
+function countByService(alerts) {
+  return countBy(alerts.map((alert) => ({ service: alertService(alert) })), "service");
+}
+
+function countByOwnerTeam(alerts) {
+  return countBy(alerts.map((alert) => ({ team: alertTeam(alert) })), "team");
+}
+
+function alertAge(value) {
+  if (!value) return "-";
+  const minutes = Math.max(0, Math.floor((Date.now() - new Date(value).getTime()) / 60000));
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 48) return `${hours}h ${minutes % 60}m`;
+  return `${Math.floor(hours / 24)}d`;
+}
+
 function minutesBetween(start, end) {
   if (!start || !end) return null;
   return (new Date(end) - new Date(start)) / 60000;
@@ -462,7 +500,6 @@ function App() {
   const [mode, setMode] = useState(() => localStorage.getItem("sre-theme") || "dark");
   const [active, setActive] = useState("Overview");
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => getStored("sre-sidebar-collapsed", false));
   const [range, setRange] = useState(defaultRange);
   const [appliedRange, setAppliedRange] = useState(defaultRange);
   const [summary, setSummary] = useState(null);
@@ -530,7 +567,6 @@ function App() {
     return () => document.body.classList.remove("mintoak-dark");
   }, [mode]);
 
-  useEffect(() => saveStored("sre-sidebar-collapsed", sidebarCollapsed), [sidebarCollapsed]);
   useEffect(() => saveStored("sre-important-urls", urls), [urls]);
   useEffect(() => saveStored("sre-todos", todos), [todos]);
 
@@ -578,93 +614,94 @@ function App() {
     setAppliedRange(nextRange);
   }
 
-  const drawer = (
-    <Box className={sidebarCollapsed ? "sidebar collapsed" : "sidebar"}>
-      <Box className="brand">
-        <Box className="logo">
-          <img src={mode === "dark" ? "/mintoak/logo/mintoak-symbol-white.svg" : "/mintoak/logo/mintoak-symbol-green.svg"} alt="Mintoak" />
-        </Box>
-        <Box className="brand-copy">
-          <Typography variant="h6">{APP_NAME}</Typography>
-          <Typography variant="caption">Operational Command Center</Typography>
-        </Box>
-      </Box>
-      <IconButton className="sidebar-toggle" onClick={() => setSidebarCollapsed(!sidebarCollapsed)} aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}>
-        {sidebarCollapsed ? <ChevronRight /> : <ChevronLeft />}
-      </IconButton>
-      <Divider />
-      <Stack spacing={1} sx={{ p: 2 }}>
-        {NAV_ITEMS.map((item) => (
-          <Button
-            key={item}
-            className={active === item ? "nav-item active" : "nav-item"}
-            onClick={() => {
-              setActive(item);
-              setMobileOpen(false);
-            }}
-          >
-            <span>{item}</span>
-          </Button>
-        ))}
-      </Stack>
-    </Box>
-  );
-
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <Box className={`app-shell ${mode}`}>
-        <AppBar position="fixed" className="topbar" sx={{ left: { md: sidebarCollapsed ? "88px" : `${DRAWER_WIDTH}px` }, width: { md: `calc(100% - ${sidebarCollapsed ? 88 : DRAWER_WIDTH}px)` } }}>
-          <Toolbar>
-            <IconButton color="inherit" edge="start" onClick={() => setMobileOpen(true)} className="mobile-menu">
-              <Menu />
-            </IconButton>
-            <Box className="topbar-title">
+        <AppBar position="sticky" className="topbar command-topbar">
+          <Toolbar className="command-toolbar">
+            <Box className="topbar-title command-brand">
               <Box className="logo small">
                 <img src={mode === "dark" ? "/mintoak/logo/mintoak-symbol-white.svg" : "/mintoak/logo/mintoak-symbol-green.svg"} alt="Mintoak" />
               </Box>
-              <Box>
-                <Typography variant="h6">{APP_NAME}</Typography>
-                <Typography variant="caption">Dashboard Name: {active}</Typography>
-              </Box>
+              <Typography variant="h6">{APP_NAME}</Typography>
             </Box>
-            <Stack direction="row" spacing={1} alignItems="center" className="clock-stack">
+
+            <Stack direction="row" spacing={0.5} className="top-nav-links">
+              {NAV_ITEMS.map((item) => (
+                <Button
+                  key={item}
+                  className={active === item ? "top-nav-item active" : "top-nav-item"}
+                  onClick={() => setActive(item)}
+                >
+                  {item}
+                </Button>
+              ))}
+            </Stack>
+
+            <IconButton color="inherit" edge="start" onClick={() => setMobileOpen(true)} className="mobile-menu command-mobile-menu">
+              <Menu />
+            </IconButton>
+
+            <Stack direction="row" spacing={1} alignItems="center" className="clock-stack command-actions">
               <Chip label={`IST: ${clock.ist}`} />
               <Chip label={`UTC: ${clock.utc}`} />
+              <TextField
+                size="small"
+                className="global-search"
+                placeholder="Search alerts, owners, tags..."
+                InputProps={{ startAdornment: <Search fontSize="small" /> }}
+              />
+              <IconButton color="inherit">
+                <Badge badgeContent={alerts.filter((alert) => (alert.status || "").toLowerCase() === "open").length} color="error" max={99}>
+                  <Notifications />
+                </Badge>
+              </IconButton>
               <IconButton color="inherit" onClick={() => setMode(mode === "dark" ? "light" : "dark")}>
                 {mode === "dark" ? <LightMode /> : <DarkMode />}
               </IconButton>
               <IconButton color="inherit" onClick={loadDashboard}>
                 <Refresh />
               </IconButton>
+              <IconButton color="inherit">
+                <AccountCircle />
+              </IconButton>
             </Stack>
           </Toolbar>
         </AppBar>
 
-        <Box component="nav" sx={{ width: { md: sidebarCollapsed ? 88 : DRAWER_WIDTH }, flexShrink: { md: 0 } }}>
-          <Drawer variant="temporary" open={mobileOpen} onClose={() => setMobileOpen(false)} sx={{ display: { xs: "block", md: "none" }, "& .MuiDrawer-paper": { width: DRAWER_WIDTH } }}>
-            {drawer}
-          </Drawer>
-          <Drawer variant="permanent" open sx={{ display: { xs: "none", md: "block" }, "& .MuiDrawer-paper": { width: sidebarCollapsed ? 88 : DRAWER_WIDTH, overflowX: "hidden" } }}>
-            {drawer}
-          </Drawer>
-        </Box>
-
-        <Box component="main" className="content" sx={{ ml: { md: sidebarCollapsed ? "88px" : `${DRAWER_WIDTH}px` }, width: { md: `calc(100% - ${sidebarCollapsed ? 88 : DRAWER_WIDTH}px)` } }}>
-          <Box className="hero">
-            <Typography variant="h4">{APP_NAME}</Typography>
-            <Typography>Unified on-call, alert, task, URL, and executive SRE visibility.</Typography>
+        <Drawer variant="temporary" anchor="top" open={mobileOpen} onClose={() => setMobileOpen(false)} sx={{ display: { xs: "block", lg: "none" } }}>
+          <Box className="mobile-nav-panel">
+            <Stack spacing={1}>
+              {NAV_ITEMS.map((item) => (
+                <Button
+                  key={item}
+                  className={active === item ? "top-nav-item active" : "top-nav-item"}
+                  onClick={() => {
+                    setActive(item);
+                    setMobileOpen(false);
+                  }}
+                >
+                  {item}
+                </Button>
+              ))}
+            </Stack>
           </Box>
-          {active !== "Important URLs" && <DateFilter range={range} setRange={setRange} setQuickRange={setQuickRange} onApply={() => setAppliedRange(range)} />}
+        </Drawer>
+
+        <Box component="main" className="content command-content">
+          {active !== "Runbooks" && active !== "Settings" && <DateFilter range={range} setRange={setRange} setQuickRange={setQuickRange} onApply={() => setAppliedRange(range)} />}
           {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
           {loading && <Alert severity="info" sx={{ mb: 2 }}>Loading operational telemetry...</Alert>}
           {active === "Overview" && <Overview summary={summary} alerts={alerts} onCall={onCall} schedules={schedules} tasks={taskAnalytics} onRefresh={loadDashboard} setOnCall={setOnCall} />}
-          {active === "Opsgenie Alerts" && <AlertsDashboard alerts={alerts} />}
-          {active === "Team Task Summary" && <TeamTasks tasks={tasks} onUploaded={loadDashboard} />}
-          {active === "Important URLs" && <ImportantUrls urls={urls} setUrls={setUrls} />}
-          {active === "Jira Summary" && <JiraSummaryPage />}
-          {active === "On-Call Management" && <OnCallManagementPage />}
+          {active === "Alerts" && <AlertsDashboard alerts={alerts} />}
+          {active === "On-call" && <OnCallManagementPage />}
+          {active === "Schedules" && <OnCallManagementPage />}
+          {active === "Overrides" && <OnCallManagementPage />}
+          {active === "Analytics" && <AlertAnalytics alerts={alerts} />}
           {active === "Shift Handover" && <ShiftHandover mode={mode} />}
+          {active === "Runbooks" && <RunbooksPage urls={urls} setUrls={setUrls} />}
+          {active === "Settings" && <SettingsPage tasks={tasks} onUploaded={loadDashboard} />}
         </Box>
       </Box>
     </ThemeProvider>
@@ -695,30 +732,409 @@ function DateFilter({ range, setRange, setQuickRange, onApply }) {
 }
 
 function Overview({ summary, alerts, onCall, schedules, tasks, onRefresh, setOnCall }) {
-  const unackedAlerts = alerts.filter((alert) => (alert.status || "").toLowerCase() === "open" && !alert.acknowledged_at).length;
+  const [filters, setFilters] = useState({ priority: "", status: "", owner: "", source: "", search: "" });
+  const [selectedAlert, setSelectedAlert] = useState(null);
+  const todayKey = dateKey(new Date(), "Asia/Kolkata");
+  const filteredAlerts = alerts
+    .filter((alert) => !filters.priority || alert.priority === filters.priority)
+    .filter((alert) => !filters.status || alert.status === filters.status)
+    .filter((alert) => !filters.owner || alert.owner === filters.owner)
+    .filter((alert) => !filters.source || alert.source === filters.source)
+    .filter((alert) => {
+      const search = filters.search.toLowerCase();
+      if (!search) return true;
+      return [alert.message, alert.alias, alert.source, alert.owner, alert.priority, ...(alert.tags || [])].join(" ").toLowerCase().includes(search);
+    });
+  const openAlerts = filteredAlerts.filter((alert) => (alert.status || "").toLowerCase() === "open");
+  const ackedAlerts = filteredAlerts.filter((alert) => (alert.status || "").toLowerCase() === "acknowledged");
+  const unackedAlerts = openAlerts.filter((alert) => !alert.acknowledged_at).length;
+  const createdToday = alerts.filter((alert) => alert.created_at && dateKey(alert.created_at, "Asia/Kolkata") === todayKey).length;
+  const closedToday = alerts.filter((alert) => alert.closed_at && dateKey(alert.closed_at, "Asia/Kolkata") === todayKey).length;
+  const currentEngineer = onCall?.engineers?.[0]?.name || "No active engineer";
   const kpis = [
-    ["Total Alerts", summary?.total_alerts || 0],
-    ["Open Alerts", summary?.open_alerts || 0],
-    ["Acknowledged Alerts", summary?.acknowledged_alerts || 0],
-    ["Un-Acked Alerts", unackedAlerts],
-    ["Closed Alerts", summary?.closed_alerts || 0],
-    ["P1 Alerts", summary?.p1_count || 0],
-    ["P2 Alerts", summary?.p2_count || 0],
-    ["MTTA", `${summary?.mtta || 0} min`],
-    ["MTTR", `${summary?.mttr || 0} min`],
+    { label: "Open Alerts", value: openAlerts.length, tone: "info", trend: "live" },
+    { label: "Critical (P1)", value: filteredAlerts.filter((alert) => alert.priority === "P1").length, tone: "critical", trend: "+0%" },
+    { label: "High (P2)", value: filteredAlerts.filter((alert) => alert.priority === "P2").length, tone: "high", trend: "+0%" },
+    { label: "Medium (P3)", value: filteredAlerts.filter((alert) => alert.priority === "P3").length, tone: "medium", trend: "stable" },
+    { label: "Low (P4/P5)", value: filteredAlerts.filter((alert) => ["P4", "P5"].includes(alert.priority)).length, tone: "low", trend: "stable" },
+    { label: "Acknowledged", value: ackedAlerts.length, tone: "success", trend: "tracked" },
+    { label: "Unacknowledged", value: unackedAlerts, tone: "warning", trend: "needs action" },
+    { label: "Muted/Snoozed", value: filteredAlerts.filter((alert) => (alert.status || "").toLowerCase().includes("snooz")).length, tone: "neutral", trend: "ops" },
+    { label: "Escalated", value: filteredAlerts.filter((alert) => String(alert.owner || "").toLowerCase().includes("escal")).length, tone: "high", trend: "watch" },
+    { label: "Avg MTTA", value: `${summary?.mtta || 0}m`, tone: "success", trend: "SLO" },
+    { label: "Avg MTTR", value: `${summary?.mttr || 0}m`, tone: "success", trend: "SLO" },
+    { label: "Current On-call", value: displayEngineer(currentEngineer), tone: "oncall", trend: `${onCall?.engineers?.length || 0} active` },
+    { label: "Created Today", value: createdToday, tone: "info", trend: "IST" },
+    { label: "Closed Today", value: closedToday, tone: "success", trend: "IST" },
   ];
+  const quickLinks = getStored("sre-important-urls", DEFAULT_URLS);
   return (
-    <Stack spacing={3}>
-      <OpsgenieSchedulesOnCallPanel schedules={schedules} onCall={onCall} setOnCall={setOnCall} onRefresh={onRefresh} />
-      <Grid container spacing={2}>{kpis.map(([label, value]) => <KpiCard key={label} label={label} value={value} />)}</Grid>
-      <Grid container spacing={2}>
-        <ChartCard title="Alert Priority Distribution" data={countBy(alerts, "priority")} type="pie" defaultSpan={6} defaultHeight={420} />
-        <ChartCard title="Alert Status Distribution" data={countBy(alerts, "status")} type="pie" defaultSpan={6} defaultHeight={420} />
-        <ChartCard title="Alerts By Source" data={countBy(alerts, "source")} type="bar" defaultSpan={6} />
-        <ChartCard title="Alerts Trend" data={chartByDate(alerts)} type="line" defaultSpan={6} />
-        <ChartCard title="Team Distribution" data={tasks?.tasks_by_reportee || []} type="bar" horizontal defaultSpan={12} defaultHeight={520} />
+    <Stack spacing={2.5} className="command-center">
+      <Card className="command-hero-card">
+        <CardContent>
+          <Stack direction={{ xs: "column", lg: "row" }} justifyContent="space-between" spacing={2}>
+            <Box>
+              <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+                <span className="live-dot" />
+                <Typography variant="h4">Operations Command Center</Typography>
+                <Chip size="small" label="Live Opsgenie telemetry" />
+              </Stack>
+              <Typography color="text.secondary" sx={{ mt: 0.75 }}>
+                Single pane of glass for active incidents, responders, schedules, handover readiness, and operational analytics.
+              </Typography>
+            </Box>
+            <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+              <Button variant="outlined" startIcon={<Search />}>Command Search</Button>
+              <Button variant="contained" startIcon={<Refresh />} onClick={onRefresh}>Refresh Now</Button>
+            </Stack>
+          </Stack>
+        </CardContent>
+      </Card>
+
+      <Card className="command-filter-card">
+        <CardContent>
+          <Stack direction={{ xs: "column", xl: "row" }} spacing={1.5} alignItems={{ xl: "center" }}>
+            <TextField className="command-filter-search" label="Search alert name, alias, service, owner, team, tag, source" value={filters.search} onChange={(event) => setFilters({ ...filters, search: event.target.value })} />
+            <SelectField label="Priority" value={filters.priority} setValue={(value) => setFilters({ ...filters, priority: value })} options={["", "P1", "P2", "P3", "P4", "P5"]} />
+            <SelectField label="Status" value={filters.status} setValue={(value) => setFilters({ ...filters, status: value })} options={["", ...new Set(alerts.map((alert) => alert.status).filter(Boolean))]} />
+            <SelectField label="Owner" value={filters.owner} setValue={(value) => setFilters({ ...filters, owner: value })} options={["", ...new Set(alerts.map((alert) => alert.owner).filter(Boolean))]} />
+            <SelectField label="Source" value={filters.source} setValue={(value) => setFilters({ ...filters, source: value })} options={["", ...new Set(alerts.map((alert) => alert.source).filter(Boolean))]} />
+            <Button variant="outlined" onClick={() => setFilters({ priority: "", status: "", owner: "", source: "", search: "" })}>Reset</Button>
+          </Stack>
+        </CardContent>
+      </Card>
+
+      <Box className="command-kpi-grid">
+        {kpis.map((kpi) => <CommandKpi key={kpi.label} {...kpi} />)}
+      </Box>
+
+      <Box className="command-layout-grid">
+        <CurrentOnCallCommandPanel onCall={onCall} schedules={schedules} setOnCall={setOnCall} onRefresh={onRefresh} />
+        <ActiveAlertsCommandPanel alerts={openAlerts} onSelectAlert={setSelectedAlert} />
+        <ShiftHandoverWidget openAlerts={openAlerts} ackedAlerts={ackedAlerts} />
+        <ImportantLinksWidget urls={quickLinks} />
+      </Box>
+
+      <Grid container spacing={2} className="command-chart-grid">
+        <ChartCard title="Alerts by Priority" data={countBy(filteredAlerts, "priority")} type="donut" defaultSpan={6} defaultHeight={390} />
+        <ChartCard title="Alerts by Status" data={countBy(filteredAlerts, "status")} type="donut" defaultSpan={6} defaultHeight={390} />
+        <ChartCard title="Alerts by Team" data={countByOwnerTeam(filteredAlerts)} type="bar" horizontal defaultSpan={6} defaultHeight={420} />
+        <ChartCard title="Alerts by Service" data={countByService(filteredAlerts)} type="bar" horizontal defaultSpan={6} defaultHeight={420} />
+        <ChartCard title="Alerts by Source" data={countBy(filteredAlerts, "source")} type="bar" horizontal defaultSpan={6} defaultHeight={420} />
+        <ChartCard title="Alerts Trend" data={chartByDate(filteredAlerts)} type="line" defaultSpan={6} defaultHeight={420} />
       </Grid>
+
+      <Box className="command-layout-grid secondary">
+        <AlertHeatmap alerts={filteredAlerts} />
+        <MttaMttrPanel alerts={filteredAlerts} summary={summary} />
+        <RecentActivityFeed alerts={filteredAlerts} />
+        <FutureAiPanel />
+      </Box>
+
+      <AlertDetailsDrawer alert={selectedAlert} onClose={() => setSelectedAlert(null)} />
     </Stack>
+  );
+}
+
+function CommandKpi({ label, value, trend, tone }) {
+  return (
+    <Card className={`command-kpi-card tone-${tone}`}>
+      <CardContent>
+        <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1}>
+          <Box className="command-kpi-icon">{label.slice(0, 1)}</Box>
+          <Chip size="small" label={trend} className="command-trend-chip" />
+        </Stack>
+        <Typography variant="h4">{value}</Typography>
+        <Typography color="text.secondary">{label}</Typography>
+      </CardContent>
+    </Card>
+  );
+}
+
+function CurrentOnCallCommandPanel({ onCall, schedules, setOnCall, onRefresh }) {
+  const engineers = onCall?.engineers || [];
+  const primary = engineers[0];
+  const secondary = engineers[1];
+  return (
+    <Card className="command-panel current-oncall-command">
+      <CardContent>
+        <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
+          <Box>
+            <Typography variant="h6">Current On-call</Typography>
+            <Typography color="text.secondary">Primary/secondary responder visibility</Typography>
+          </Box>
+          <Chip size="small" label={onCall?.timezone || "Timezone N/A"} />
+        </Stack>
+        <Stack spacing={1.5}>
+          <ResponderRow label="Primary Engineer" engineer={primary} />
+          <ResponderRow label="Secondary Engineer" engineer={secondary} />
+          <Divider />
+          <InfoPair label="Current Schedule" value={onCall?.schedule_name || schedules?.[0]?.name || "No schedule selected"} />
+          <InfoPair label="Schedule Start" value="Current rotation window" />
+          <InfoPair label="Schedule End" value="See schedule timeline" />
+          <InfoPair label="Upcoming Rotation" value="Available in Schedules" />
+          <InfoPair label="Override Status" value="No active override returned" />
+          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+            <Button size="small" variant="outlined" onClick={onRefresh}>Schedule</Button>
+            <Button size="small" variant="outlined">Override Calendar</Button>
+          </Stack>
+        </Stack>
+      </CardContent>
+    </Card>
+  );
+}
+
+function ResponderRow({ label, engineer }) {
+  return (
+    <Stack direction="row" spacing={1.2} alignItems="center">
+      <Box className="engineer-avatar small">{engineerInitials(engineer?.name)}</Box>
+      <Box sx={{ minWidth: 0 }}>
+        <Typography variant="caption" color="text.secondary">{label}</Typography>
+        <Typography fontWeight={900} noWrap>{engineer?.name || "Not assigned"}</Typography>
+        <Typography variant="caption" color="text.secondary" noWrap>{engineer?.email || "Email not provided"}</Typography>
+      </Box>
+    </Stack>
+  );
+}
+
+function InfoPair({ label, value }) {
+  return (
+    <Stack direction="row" justifyContent="space-between" spacing={2}>
+      <Typography color="text.secondary" variant="body2">{label}</Typography>
+      <Typography fontWeight={800} variant="body2" textAlign="right">{value}</Typography>
+    </Stack>
+  );
+}
+
+function ActiveAlertsCommandPanel({ alerts, onSelectAlert }) {
+  return (
+    <Card className="command-panel active-alerts-command">
+      <CardContent>
+        <Stack direction={{ xs: "column", md: "row" }} justifyContent="space-between" spacing={1.5} sx={{ mb: 2 }}>
+          <Box>
+            <Typography variant="h6">Active Incidents</Typography>
+            <Typography color="text.secondary">Open incidents requiring responder attention</Typography>
+          </Box>
+          <Chip label={`${alerts.length} active`} color={alerts.length ? "error" : "success"} />
+        </Stack>
+        <Box className="command-table-wrap">
+          <Table size="small" className="command-alert-table">
+            <TableHead>
+              <TableRow>
+                {["Priority", "Status", "Alert Name", "Service", "Team", "Owner", "Created Time", "Age", "Source", "Tags", "Ack By", "Assignee", "Actions"].map((column) => <TableCell key={column}>{column}</TableCell>)}
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {alerts.slice(0, 12).map((alert) => (
+                <TableRow hover key={alert.alert_id} onClick={() => onSelectAlert(alert)}>
+                  <TableCell><Chip size="small" label={alert.priority} className={`priority-chip ${alert.priority?.toLowerCase()}`} /></TableCell>
+                  <TableCell>{alert.status}</TableCell>
+                  <TableCell>{alert.message}</TableCell>
+                  <TableCell>{alertService(alert)}</TableCell>
+                  <TableCell>{alertTeam(alert)}</TableCell>
+                  <TableCell>{alert.owner || "-"}</TableCell>
+                  <TableCell>{formatIst(alert.created_at)}</TableCell>
+                  <TableCell>{alertAge(alert.created_at)}</TableCell>
+                  <TableCell>{alert.source || "-"}</TableCell>
+                  <TableCell>{(alert.tags || []).slice(0, 3).join(", ") || "-"}</TableCell>
+                  <TableCell>{alert.acknowledged_at ? "Acked" : "-"}</TableCell>
+                  <TableCell>{alert.responders?.[0] || alert.owner || "-"}</TableCell>
+                  <TableCell>
+                    <Stack direction="row" spacing={0.5}>
+                      <Button size="small">Ack</Button>
+                      <Button size="small">Close</Button>
+                      {alert.alert_url && <IconButton size="small" href={alert.alert_url} target="_blank" rel="noreferrer"><Launch fontSize="small" /></IconButton>}
+                    </Stack>
+                  </TableCell>
+                </TableRow>
+              ))}
+              {!alerts.length && (
+                <TableRow><TableCell colSpan={13}><EmptyState text="No active alerts match the selected filters." /></TableCell></TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </Box>
+      </CardContent>
+    </Card>
+  );
+}
+
+function ShiftHandoverWidget({ openAlerts, ackedAlerts }) {
+  const critical = openAlerts.filter((alert) => alert.priority === "P1");
+  return (
+    <Card className="command-panel">
+      <CardContent>
+        <Typography variant="h6">Shift Handover</Typography>
+        <Typography color="text.secondary" sx={{ mb: 2 }}>Shift readiness snapshot and report actions.</Typography>
+        <Stack spacing={1}>
+          <InfoPair label="Open Alerts" value={openAlerts.length} />
+          <InfoPair label="Acknowledged Alerts" value={ackedAlerts.length} />
+          <InfoPair label="Critical Alerts" value={critical.length} />
+          <InfoPair label="Escalated Alerts" value={openAlerts.filter((alert) => String(alert.owner || "").toLowerCase().includes("escal")).length} />
+          <TextField label="Notes" multiline minRows={3} placeholder="Add shift handover notes..." />
+          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+            <Button size="small" variant="contained">Generate Report</Button>
+            <Button size="small" variant="outlined">Copy</Button>
+            <Button size="small" variant="outlined">Post to GChat</Button>
+            <Button size="small" variant="outlined">Markdown</Button>
+          </Stack>
+        </Stack>
+      </CardContent>
+    </Card>
+  );
+}
+
+function ImportantLinksWidget({ urls }) {
+  const defaults = ["Grafana", "Opsgenie", "AWS Console", "Jenkins", "ArgoCD", "GitHub", "Runbooks", "Kubernetes Dashboard", "Loki", "Prometheus"];
+  const links = urls?.length ? urls : defaults.map((title) => ({ title, url: "#" }));
+  return (
+    <Card className="command-panel">
+      <CardContent>
+        <Typography variant="h6">Important Links</Typography>
+        <Typography color="text.secondary" sx={{ mb: 2 }}>Fast operational access.</Typography>
+        <Box className="quick-link-grid">
+          {links.slice(0, 10).map((url) => (
+            <Button key={url.title} variant="outlined" href={url.url} target="_blank" rel="noreferrer" endIcon={<Launch />}>{url.title}</Button>
+          ))}
+        </Box>
+      </CardContent>
+    </Card>
+  );
+}
+
+function AlertHeatmap({ alerts }) {
+  const data = countByService(alerts).slice(0, 10);
+  const max = Math.max(...data.map((item) => item.value), 1);
+  return (
+    <Card className="command-panel">
+      <CardContent>
+        <Typography variant="h6">Noisy Service Heatmap</Typography>
+        <Typography color="text.secondary" sx={{ mb: 2 }}>Color intensity represents alert frequency.</Typography>
+        <Stack spacing={1}>
+          {data.map((item) => (
+            <Box className="heatmap-row" key={item.name} sx={{ "--heat": item.value / max }}>
+              <Typography fontWeight={800}>{item.name}</Typography>
+              <Typography>{item.value}</Typography>
+            </Box>
+          ))}
+        </Stack>
+      </CardContent>
+    </Card>
+  );
+}
+
+function MttaMttrPanel({ alerts, summary }) {
+  return (
+    <Card className="command-panel">
+      <CardContent>
+        <Typography variant="h6">MTTA / MTTR Analytics</Typography>
+        <Typography color="text.secondary" sx={{ mb: 2 }}>Daily, weekly, and monthly response trend placeholders.</Typography>
+        <Grid container spacing={1.5}>
+          <KpiCard label="Daily MTTA" value={`${summary?.mtta || 0}m`} />
+          <KpiCard label="Daily MTTR" value={`${summary?.mttr || 0}m`} />
+          <KpiCard label="Weekly MTTA" value={`${summary?.mtta || 0}m`} />
+          <KpiCard label="Weekly MTTR" value={`${summary?.mttr || 0}m`} />
+        </Grid>
+        <Box sx={{ mt: 2, height: 220 }}>
+          <ResponsiveContainer>
+            <LineChart data={chartByDate(alerts)}>
+              <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
+              <XAxis dataKey="name" />
+              <YAxis />
+              <Tooltip />
+              <Line dataKey="value" stroke="#80C341" strokeWidth={3} />
+            </LineChart>
+          </ResponsiveContainer>
+        </Box>
+      </CardContent>
+    </Card>
+  );
+}
+
+function RecentActivityFeed({ alerts }) {
+  const feed = alerts.slice(0, 12).flatMap((alert) => [
+    { type: "Alert Created", at: alert.created_at, text: alert.message, user: alert.owner || alert.source },
+    alert.acknowledged_at ? { type: "Alert Acknowledged", at: alert.acknowledged_at, text: alert.message, user: alert.owner || "Responder" } : null,
+    alert.closed_at ? { type: "Alert Closed", at: alert.closed_at, text: alert.message, user: alert.owner || "Responder" } : null,
+  ].filter(Boolean)).sort((a, b) => new Date(b.at || 0) - new Date(a.at || 0)).slice(0, 10);
+  return (
+    <Card className="command-panel">
+      <CardContent>
+        <Typography variant="h6">Recent Activity</Typography>
+        <Typography color="text.secondary" sx={{ mb: 2 }}>Live operational event stream.</Typography>
+        <Stack spacing={1.2}>
+          {feed.map((item, index) => (
+            <Box className="activity-item" key={`${item.type}-${item.at}-${index}`}>
+              <span className="activity-dot" />
+              <Box>
+                <Typography fontWeight={900}>{item.type}</Typography>
+                <Typography variant="body2" color="text.secondary">{item.text}</Typography>
+                <Typography variant="caption" color="text.secondary">{formatIst(item.at)} · {item.user}</Typography>
+              </Box>
+            </Box>
+          ))}
+          {!feed.length && <EmptyState text="No recent alert activity for the selected range." />}
+        </Stack>
+      </CardContent>
+    </Card>
+  );
+}
+
+function FutureAiPanel() {
+  return (
+    <Card className="command-panel ai-panel">
+      <CardContent>
+        <Typography variant="h6">AI Operational Insights</Typography>
+        <Typography color="text.secondary" sx={{ mb: 2 }}>Reserved for future backend-provided intelligence.</Typography>
+        {["Incident Summary", "Root Cause Suggestions", "Repeated Alert Detection", "Alert Correlation", "Recommended Runbooks", "Predicted Impact"].map((item) => (
+          <Chip key={item} label={item} sx={{ mr: 1, mb: 1 }} />
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
+
+function AlertDetailsDrawer({ alert, onClose }) {
+  return (
+    <Drawer anchor="right" open={Boolean(alert)} onClose={onClose} PaperProps={{ className: "alert-detail-drawer" }}>
+      <Box sx={{ p: 3, width: { xs: "100vw", sm: 520 } }}>
+        <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
+          <Typography variant="h6">Alert Details</Typography>
+          <Button onClick={onClose}>Close</Button>
+        </Stack>
+        {alert && (
+          <Stack spacing={2}>
+            <Typography variant="h5">{alert.message}</Typography>
+            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+              <Chip label={alert.priority} color="error" />
+              <Chip label={alert.status} />
+              <Chip label={alert.source || "Source N/A"} />
+            </Stack>
+            <InfoPair label="Description" value={alert.notes || alert.alias || "No description returned"} />
+            <InfoPair label="Owner" value={alert.owner || "-"} />
+            <InfoPair label="Team" value={alertTeam(alert)} />
+            <InfoPair label="Service" value={alertService(alert)} />
+            <InfoPair label="Alias" value={alert.alias || "-"} />
+            <InfoPair label="Created" value={formatIst(alert.created_at)} />
+            <InfoPair label="Updated" value={formatIst(alert.updated_at)} />
+            <InfoPair label="Acknowledged By" value={alert.acknowledged_at ? "Responder" : "-"} />
+            <InfoPair label="Responder" value={alert.responders?.join(", ") || "-"} />
+            <InfoPair label="Escalation Policy" value={alert.owner || "-"} />
+            <Divider />
+            <Typography fontWeight={900}>Timeline / Activity History</Typography>
+            <RecentActivityFeed alerts={[alert]} />
+            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+              <Button variant="contained">Acknowledge</Button>
+              <Button variant="outlined">Close</Button>
+              <Button variant="outlined">Mute/Snooze</Button>
+              <Button variant="outlined">Assign</Button>
+              <Button variant="outlined">Add Note</Button>
+              {alert.alert_url && <Button variant="outlined" href={alert.alert_url} target="_blank" rel="noreferrer">Opsgenie</Button>}
+            </Stack>
+          </Stack>
+        )}
+      </Box>
+    </Drawer>
   );
 }
 
@@ -1918,6 +2334,34 @@ function ShiftHandover({ mode }) {
         </DialogActions>
       </Dialog>
     </Card>
+  );
+}
+
+function RunbooksPage({ urls, setUrls }) {
+  return (
+    <Stack spacing={2.5}>
+      <Card className="command-hero-card">
+        <CardContent>
+          <Typography variant="h4">Runbooks</Typography>
+          <Typography color="text.secondary">Operational shortcuts and response documentation entry points.</Typography>
+        </CardContent>
+      </Card>
+      <ImportantUrls urls={urls} setUrls={setUrls} />
+    </Stack>
+  );
+}
+
+function SettingsPage({ tasks, onUploaded }) {
+  return (
+    <Stack spacing={2.5}>
+      <Card className="command-hero-card">
+        <CardContent>
+          <Typography variant="h4">Settings</Typography>
+          <Typography color="text.secondary">Application data management, CSV upload, and reporting configuration.</Typography>
+        </CardContent>
+      </Card>
+      <TeamTasks tasks={tasks} onUploaded={onUploaded} />
+    </Stack>
   );
 }
 
