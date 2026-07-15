@@ -1,4 +1,4 @@
-name: Deploy SRE Operational Insights to AWS
+name: Deploy SRE Operations Center to AWS
 
 on:
   workflow_dispatch:

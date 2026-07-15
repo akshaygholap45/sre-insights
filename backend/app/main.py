@@ -9,9 +9,7 @@ from app.config import settings
 from app.models.schemas import HealthResponse
 from app.routers.dashboard import router as dashboard_router
 from app.routers.handover import router as handover_router
-from app.routers.jira import router as jira_router
 from app.routers.opsgenie import router as opsgenie_router
-from app.routers.tasks import router as tasks_router
 
 logger = logging.getLogger(__name__)
 
@@ -41,9 +39,7 @@ async def log_requests(request: Request, call_next):
 
 app.include_router(dashboard_router, prefix="/api/dashboard", tags=["Dashboard"])
 app.include_router(handover_router, prefix="/api/handover", tags=["Shift Handover"])
-app.include_router(jira_router, prefix="/api/jira", tags=["Jira"])
 app.include_router(opsgenie_router, prefix="/api/opsgenie", tags=["Opsgenie"])
-app.include_router(tasks_router, prefix="/api/tasks", tags=["Tasks"])
 
 
 @app.get("/", response_model=HealthResponse)

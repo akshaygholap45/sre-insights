@@ -169,32 +169,3 @@ class UrlCard(BaseModel):
     category: str
     description: str | None = None
 
-
-class JiraIssue(BaseModel):
-    key: str
-    summary: str = ""
-    status: str = "Unknown"
-    priority: str = "Unprioritized"
-    issue_type: str = "Task"
-    assignee: str = "Unassigned"
-    reporter: str = "Unknown"
-    updated: datetime | None = None
-    created: datetime | None = None
-    url: str | None = None
-
-
-class JiraSummary(BaseModel):
-    total_issues: int = 0
-    open_issues: int = 0
-    in_progress_issues: int = 0
-    done_issues: int = 0
-    unassigned_issues: int = 0
-    by_status: list[dict[str, Any]] = Field(default_factory=list)
-    by_priority: list[dict[str, Any]] = Field(default_factory=list)
-    by_issue_type: list[dict[str, Any]] = Field(default_factory=list)
-    by_assignee: list[dict[str, Any]] = Field(default_factory=list)
-    recent_issues: list[JiraIssue] = Field(default_factory=list)
-    jql: str = ""
-    configured: bool = False
-    authenticated: bool = False
-    error_message: str | None = None

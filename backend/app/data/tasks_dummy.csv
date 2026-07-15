@@ -1,6 +1,6 @@
 Date,Client,Reportee,Alert Name,Summary,Resolution,Tracker
-2026-06-01,Payments,Riya Nair,High API Latency,Checkout API p95 latency breached,Scaled service and tuned database index,JIRA-241
-2026-06-02,Core Banking,Aman Shah,Queue Backlog,Settlement worker queue backlog increased,Restarted stuck workers and added monitoring,JIRA-244
-2026-06-05,Merchant Portal,Neha Rao,Login Error Spike,OAuth callback failures crossed threshold,Rotated stale client secret,JIRA-251
-2026-06-08,Payments,Riya Nair,Disk Utilization,Postgres disk utilization above 85 percent,,JIRA-260
-2026-06-12,Analytics,Vikram Sen,Report Delay,Daily MIS report generation delayed,Reprocessed failed batch and patched scheduler,JIRA-267
+2026-06-01,Payments,Riya Nair,High API Latency,Checkout API p95 latency breached,Scaled service and tuned database index,OPS-241
+2026-06-02,Core Banking,Aman Shah,Queue Backlog,Settlement worker queue backlog increased,Restarted stuck workers and added monitoring,OPS-244
+2026-06-05,Merchant Portal,Neha Rao,Login Error Spike,OAuth callback failures crossed threshold,Rotated stale client secret,OPS-251
+2026-06-08,Payments,Riya Nair,Disk Utilization,Postgres disk utilization above 85 percent,,OPS-260
+2026-06-12,Analytics,Vikram Sen,Report Delay,Daily MIS report generation delayed,Reprocessed failed batch and patched scheduler,OPS-267

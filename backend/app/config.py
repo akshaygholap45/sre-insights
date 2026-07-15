@@ -11,7 +11,7 @@ load_dotenv()
 
 
 class Settings(BaseSettings):
-    app_name: str = "SRE Operational Insights"
+    app_name: str = "SRE Operations Center"
     opsgenie_api_key: str | None = Field(default=None, alias="OPSGENIE_API_KEY")
     opsgenie_base_url: str = Field(default="https://api.opsgenie.com", alias="OPSGENIE_BASE_URL")
     default_schedule_id: str | None = Field(default=None, alias="DEFAULT_SCHEDULE_ID")
@@ -26,12 +26,6 @@ class Settings(BaseSettings):
     opsgenie_verify_ssl: bool = Field(default=True, alias="OPSGENIE_VERIFY_SSL")
     opsgenie_ca_bundle: str | None = Field(default=None, alias="OPSGENIE_CA_BUNDLE")
     google_chat_webhook_url: str | None = Field(default=None, alias="GOOGLE_CHAT_WEBHOOK_URL")
-    jira_base_url: str | None = Field(default=None, alias="JIRA_BASE_URL")
-    jira_email: str | None = Field(default=None, alias="JIRA_EMAIL")
-    jira_api_token: str | None = Field(default=None, alias="JIRA_API_TOKEN")
-    jira_project_key: str | None = Field(default=None, alias="JIRA_PROJECT_KEY")
-    jira_default_jql: str | None = Field(default=None, alias="JIRA_DEFAULT_JQL")
-    jira_max_results: int = Field(default=100, alias="JIRA_MAX_RESULTS")
 
     model_config = SettingsConfigDict(env_file=".env", populate_by_name=True, extra="ignore")
 
@@ -57,8 +51,6 @@ class Settings(BaseSettings):
             warnings.append("OPSGENIE_VERIFY_SSL=false disables TLS certificate verification and should only be used for local debugging")
         if not self.google_chat_webhook_url:
             warnings.append("GOOGLE_CHAT_WEBHOOK_URL is not set; shift handover send will be disabled")
-        if not all([self.jira_base_url, self.jira_email, self.jira_api_token]):
-            warnings.append("Jira integration is not fully configured; Jira Summary will show an empty state")
         return warnings
 
 

@@ -74,7 +74,7 @@ const DRAWER_WIDTH = 260;
 const COLORS = ["#2563EB", "#0F766E", "#D97706", "#7C3AED", "#DC6B5F", "#4A8B27", "#246915", "#80C341"];
 const PRIORITY_COLORS = { P1: "#DC2626", P2: "#D97706", P3: "#2563EB", P4: "#7C3AED", P5: "#4A8B27" };
 const STATUS_COLORS = { open: "#2563EB", acknowledged: "#D97706", closed: "#2E7D32" };
-const NAV_ITEMS = ["Overview", "Alerts", "On-call", "Schedules", "Overrides", "Analytics", "Shift Handover", "Runbooks", "Settings"];
+const NAV_ITEMS = ["Overview", "Alerts", "Alerts Analytics", "On-call Management", "Shift Handover"];
 const SHIFT_OPTIONS = [
   { id: "morning", label: "Morning Shift", startHour: 7, startMinute: 30, endHour: 16, endMinute: 30, endDayOffset: 0 },
   { id: "afternoon", label: "Afternoon Shift", startHour: 15, startMinute: 0, endHour: 0, endMinute: 0, endDayOffset: 1 },
@@ -172,10 +172,6 @@ function formatIst(value, options = {}) {
     hour12: true,
     ...options,
   });
-}
-
-function formatJiraDate(value) {
-  return formatIst(value);
 }
 
 function dateColumns(startValue, endValue) {
@@ -567,27 +563,20 @@ function App() {
     return () => document.body.classList.remove("mintoak-dark");
   }, [mode]);
 
-  useEffect(() => saveStored("sre-important-urls", urls), [urls]);
-  useEffect(() => saveStored("sre-todos", todos), [todos]);
-
   async function loadDashboard() {
     setLoading(true);
     setError("");
     const params = { start: toApiDate(appliedRange.start), end: toApiDate(appliedRange.end) };
     try {
-      const [alertsRes, onCallRes, schedulesRes, tasksRes, taskAnalyticsRes] = await Promise.all([
+      const [alertsRes, onCallRes, schedulesRes] = await Promise.all([
         api.get("/opsgenie/alerts", { params }),
         api.get("/opsgenie/oncall"),
         api.get("/opsgenie/schedules"),
-        api.get("/tasks"),
-        api.get("/tasks/analytics"),
       ]);
       setAlerts(alertsRes.data);
       setSummary(buildSummaryFromAlerts(alertsRes.data));
       setOnCall(onCallRes.data);
       setSchedules(schedulesRes.data);
-      setTasks(tasksRes.data);
-      setTaskAnalytics(taskAnalyticsRes.data);
     } catch (err) {
       setError(err.response?.data?.detail || "Unable to load dashboard data");
     } finally {
@@ -690,18 +679,14 @@ function App() {
         </Drawer>
 
         <Box component="main" className="content command-content">
-          {active !== "Runbooks" && active !== "Settings" && <DateFilter range={range} setRange={setRange} setQuickRange={setQuickRange} onApply={() => setAppliedRange(range)} />}
+          {active !== "On-call Management" && <DateFilter range={range} setRange={setRange} setQuickRange={setQuickRange} onApply={() => setAppliedRange(range)} />}
           {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
           {loading && <Alert severity="info" sx={{ mb: 2 }}>Loading operational telemetry...</Alert>}
-          {active === "Overview" && <Overview summary={summary} alerts={alerts} onCall={onCall} schedules={schedules} tasks={taskAnalytics} onRefresh={loadDashboard} setOnCall={setOnCall} />}
+          {active === "Overview" && <Overview summary={summary} alerts={alerts} onCall={onCall} schedules={schedules} onRefresh={loadDashboard} setOnCall={setOnCall} />}
           {active === "Alerts" && <AlertsDashboard alerts={alerts} />}
-          {active === "On-call" && <OnCallManagementPage />}
-          {active === "Schedules" && <OnCallManagementPage />}
-          {active === "Overrides" && <OnCallManagementPage />}
-          {active === "Analytics" && <AlertAnalytics alerts={alerts} />}
+          {active === "Alerts Analytics" && <AlertAnalytics alerts={alerts} />}
+          {active === "On-call Management" && <OnCallManagementPage />}
           {active === "Shift Handover" && <ShiftHandover mode={mode} />}
-          {active === "Runbooks" && <RunbooksPage urls={urls} setUrls={setUrls} />}
-          {active === "Settings" && <SettingsPage tasks={tasks} onUploaded={loadDashboard} />}
         </Box>
       </Box>
     </ThemeProvider>
@@ -731,107 +716,53 @@ function DateFilter({ range, setRange, setQuickRange, onApply }) {
   );
 }
 
-function Overview({ summary, alerts, onCall, schedules, tasks, onRefresh, setOnCall }) {
-  const [filters, setFilters] = useState({ priority: "", status: "", owner: "", source: "", search: "" });
-  const [selectedAlert, setSelectedAlert] = useState(null);
+function Overview({ summary, alerts, onCall, schedules, onRefresh, setOnCall }) {
   const todayKey = dateKey(new Date(), "Asia/Kolkata");
-  const filteredAlerts = alerts
-    .filter((alert) => !filters.priority || alert.priority === filters.priority)
-    .filter((alert) => !filters.status || alert.status === filters.status)
-    .filter((alert) => !filters.owner || alert.owner === filters.owner)
-    .filter((alert) => !filters.source || alert.source === filters.source)
-    .filter((alert) => {
-      const search = filters.search.toLowerCase();
-      if (!search) return true;
-      return [alert.message, alert.alias, alert.source, alert.owner, alert.priority, ...(alert.tags || [])].join(" ").toLowerCase().includes(search);
-    });
-  const openAlerts = filteredAlerts.filter((alert) => (alert.status || "").toLowerCase() === "open");
-  const ackedAlerts = filteredAlerts.filter((alert) => (alert.status || "").toLowerCase() === "acknowledged");
+  const openAlerts = alerts.filter((alert) => (alert.status || "").toLowerCase() === "open");
   const unackedAlerts = openAlerts.filter((alert) => !alert.acknowledged_at).length;
   const createdToday = alerts.filter((alert) => alert.created_at && dateKey(alert.created_at, "Asia/Kolkata") === todayKey).length;
   const closedToday = alerts.filter((alert) => alert.closed_at && dateKey(alert.closed_at, "Asia/Kolkata") === todayKey).length;
   const currentEngineer = onCall?.engineers?.[0]?.name || "No active engineer";
   const kpis = [
     { label: "Open Alerts", value: openAlerts.length, tone: "info", trend: "live" },
-    { label: "Critical (P1)", value: filteredAlerts.filter((alert) => alert.priority === "P1").length, tone: "critical", trend: "+0%" },
-    { label: "High (P2)", value: filteredAlerts.filter((alert) => alert.priority === "P2").length, tone: "high", trend: "+0%" },
-    { label: "Medium (P3)", value: filteredAlerts.filter((alert) => alert.priority === "P3").length, tone: "medium", trend: "stable" },
-    { label: "Low (P4/P5)", value: filteredAlerts.filter((alert) => ["P4", "P5"].includes(alert.priority)).length, tone: "low", trend: "stable" },
-    { label: "Acknowledged", value: ackedAlerts.length, tone: "success", trend: "tracked" },
+    { label: "P1 Critical", value: summary?.p1_count || 0, tone: "critical", trend: "priority" },
+    { label: "P2 High", value: summary?.p2_count || 0, tone: "high", trend: "priority" },
+    { label: "Acknowledged", value: summary?.acknowledged_alerts || 0, tone: "success", trend: "tracked" },
     { label: "Unacknowledged", value: unackedAlerts, tone: "warning", trend: "needs action" },
-    { label: "Muted/Snoozed", value: filteredAlerts.filter((alert) => (alert.status || "").toLowerCase().includes("snooz")).length, tone: "neutral", trend: "ops" },
-    { label: "Escalated", value: filteredAlerts.filter((alert) => String(alert.owner || "").toLowerCase().includes("escal")).length, tone: "high", trend: "watch" },
     { label: "Avg MTTA", value: `${summary?.mtta || 0}m`, tone: "success", trend: "SLO" },
     { label: "Avg MTTR", value: `${summary?.mttr || 0}m`, tone: "success", trend: "SLO" },
     { label: "Current On-call", value: displayEngineer(currentEngineer), tone: "oncall", trend: `${onCall?.engineers?.length || 0} active` },
     { label: "Created Today", value: createdToday, tone: "info", trend: "IST" },
     { label: "Closed Today", value: closedToday, tone: "success", trend: "IST" },
   ];
-  const quickLinks = getStored("sre-important-urls", DEFAULT_URLS);
   return (
-    <Stack spacing={2.5} className="command-center">
+    <Stack spacing={2.5} className="simple-page overview-page">
       <Card className="command-hero-card">
         <CardContent>
           <Stack direction={{ xs: "column", lg: "row" }} justifyContent="space-between" spacing={2}>
             <Box>
               <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
                 <span className="live-dot" />
-                <Typography variant="h4">Operations Command Center</Typography>
-                <Chip size="small" label="Live Opsgenie telemetry" />
+                <Typography variant="h4">Overview</Typography>
+                <Chip size="small" label="Opsgenie live summary" />
               </Stack>
-              <Typography color="text.secondary" sx={{ mt: 0.75 }}>
-                Single pane of glass for active incidents, responders, schedules, handover readiness, and operational analytics.
-              </Typography>
+              <Typography color="text.secondary" sx={{ mt: 0.75 }}>High-level operational health and current on-call schedule.</Typography>
             </Box>
-            <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
-              <Button variant="outlined" startIcon={<Search />}>Command Search</Button>
-              <Button variant="contained" startIcon={<Refresh />} onClick={onRefresh}>Refresh Now</Button>
-            </Stack>
+            <Button variant="contained" startIcon={<Refresh />} onClick={onRefresh}>Refresh</Button>
           </Stack>
         </CardContent>
       </Card>
 
-      <Card className="command-filter-card">
-        <CardContent>
-          <Stack direction={{ xs: "column", xl: "row" }} spacing={1.5} alignItems={{ xl: "center" }}>
-            <TextField className="command-filter-search" label="Search alert name, alias, service, owner, team, tag, source" value={filters.search} onChange={(event) => setFilters({ ...filters, search: event.target.value })} />
-            <SelectField label="Priority" value={filters.priority} setValue={(value) => setFilters({ ...filters, priority: value })} options={["", "P1", "P2", "P3", "P4", "P5"]} />
-            <SelectField label="Status" value={filters.status} setValue={(value) => setFilters({ ...filters, status: value })} options={["", ...new Set(alerts.map((alert) => alert.status).filter(Boolean))]} />
-            <SelectField label="Owner" value={filters.owner} setValue={(value) => setFilters({ ...filters, owner: value })} options={["", ...new Set(alerts.map((alert) => alert.owner).filter(Boolean))]} />
-            <SelectField label="Source" value={filters.source} setValue={(value) => setFilters({ ...filters, source: value })} options={["", ...new Set(alerts.map((alert) => alert.source).filter(Boolean))]} />
-            <Button variant="outlined" onClick={() => setFilters({ priority: "", status: "", owner: "", source: "", search: "" })}>Reset</Button>
-          </Stack>
-        </CardContent>
-      </Card>
-
+      <OpsgenieSchedulesOnCallPanel schedules={schedules} onCall={onCall} setOnCall={setOnCall} onRefresh={onRefresh} />
       <Box className="command-kpi-grid">
         {kpis.map((kpi) => <CommandKpi key={kpi.label} {...kpi} />)}
       </Box>
 
-      <Box className="command-layout-grid">
-        <CurrentOnCallCommandPanel onCall={onCall} schedules={schedules} setOnCall={setOnCall} onRefresh={onRefresh} />
-        <ActiveAlertsCommandPanel alerts={openAlerts} onSelectAlert={setSelectedAlert} />
-        <ShiftHandoverWidget openAlerts={openAlerts} ackedAlerts={ackedAlerts} />
-        <ImportantLinksWidget urls={quickLinks} />
-      </Box>
-
-      <Grid container spacing={2} className="command-chart-grid">
-        <ChartCard title="Alerts by Priority" data={countBy(filteredAlerts, "priority")} type="donut" defaultSpan={6} defaultHeight={390} />
-        <ChartCard title="Alerts by Status" data={countBy(filteredAlerts, "status")} type="donut" defaultSpan={6} defaultHeight={390} />
-        <ChartCard title="Alerts by Team" data={countByOwnerTeam(filteredAlerts)} type="bar" horizontal defaultSpan={6} defaultHeight={420} />
-        <ChartCard title="Alerts by Service" data={countByService(filteredAlerts)} type="bar" horizontal defaultSpan={6} defaultHeight={420} />
-        <ChartCard title="Alerts by Source" data={countBy(filteredAlerts, "source")} type="bar" horizontal defaultSpan={6} defaultHeight={420} />
-        <ChartCard title="Alerts Trend" data={chartByDate(filteredAlerts)} type="line" defaultSpan={6} defaultHeight={420} />
+      <Grid container spacing={2} className="overview-chart-grid">
+        <ChartCard title="Alert Priority Overview" data={countBy(alerts, "priority")} type="donut" defaultSpan={6} defaultHeight={360} />
+        <ChartCard title="Alert Status Overview" data={countBy(alerts, "status")} type="donut" defaultSpan={6} defaultHeight={360} />
+        <ChartCard title="Alerts Trend Overview" data={chartByDate(alerts)} type="line" defaultSpan={12} defaultHeight={380} />
       </Grid>
-
-      <Box className="command-layout-grid secondary">
-        <AlertHeatmap alerts={filteredAlerts} />
-        <MttaMttrPanel alerts={filteredAlerts} summary={summary} />
-        <RecentActivityFeed alerts={filteredAlerts} />
-        <FutureAiPanel />
-      </Box>
-
-      <AlertDetailsDrawer alert={selectedAlert} onClose={() => setSelectedAlert(null)} />
     </Stack>
   );
 }
@@ -1276,23 +1207,26 @@ function KpiCard({ label, value }) {
   );
 }
 
-function ChartCard({ title, data, type, stackKeys = [], colors = {}, defaultHeight = 380, defaultSpan, horizontal = false }) {
+function ChartCard({ title, data, type, stackKeys = [], colors = {}, defaultHeight = 380, defaultSpan, horizontal = false, fixedSpan }) {
   const safeData = data?.length ? data : [{ name: "No data", value: 0 }];
   const storageKey = `v3-${title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
   const [height, setHeight] = useState(() => getStored(`panel-height-${storageKey}`, defaultHeight));
   const [span, setSpan] = useState(() => getStored(`panel-span-${storageKey}`, defaultSpan || 6));
+  const effectiveSpan = fixedSpan || span;
 
   useEffect(() => saveStored(`panel-height-${storageKey}`, height), [height, storageKey]);
-  useEffect(() => saveStored(`panel-span-${storageKey}`, span), [span, storageKey]);
+  useEffect(() => {
+    if (!fixedSpan) saveStored(`panel-span-${storageKey}`, span);
+  }, [fixedSpan, span, storageKey]);
 
   return (
-    <Grid item xs={12} lg={span}>
+    <Grid item xs={12} lg={effectiveSpan}>
       <Card className="chart-card">
         <CardContent>
           <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" spacing={1} sx={{ mb: 2 }}>
             <Typography variant="h6">{title}</Typography>
             <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
-              <Button size="small" variant="outlined" onClick={() => setSpan(span === 12 ? 6 : 12)}>{span === 12 ? "Half width" : "Full width"}</Button>
+              {!fixedSpan && <Button size="small" variant="outlined" onClick={() => setSpan(span === 12 ? 6 : 12)}>{span === 12 ? "Half width" : "Full width"}</Button>}
               <Button size="small" variant="outlined" onClick={() => setHeight(Math.max(260, height - 80))}>-</Button>
               <TextField size="small" label="Height" type="number" value={height} onChange={(e) => setHeight(Math.max(260, Number(e.target.value) || defaultHeight))} sx={{ width: 105 }} />
               <Button size="small" variant="outlined" onClick={() => setHeight(height + 80)}>+</Button>
@@ -1360,10 +1294,15 @@ function AlertsDashboard({ alerts }) {
     .sort((a, b) => sort === "latest" ? new Date(b.created_at || 0) - new Date(a.created_at || 0) : new Date(a.created_at || 0) - new Date(b.created_at || 0));
   return (
     <Stack spacing={3}>
-      <AlertAnalytics alerts={filtered} />
-      <Card>
+      <Card className="command-hero-card">
         <CardContent>
-          <Typography variant="h6" sx={{ mb: 2 }}>Alert Details View</Typography>
+          <Typography variant="h4">Alerts</Typography>
+          <Typography color="text.secondary">Live Opsgenie alerts with search, filters, sorting, and pagination.</Typography>
+        </CardContent>
+      </Card>
+      <Card className="glass-card">
+        <CardContent>
+          <Typography variant="h6" sx={{ mb: 2 }}>Live Alerts</Typography>
           <Stack direction={{ xs: "column", md: "row" }} spacing={2} sx={{ mb: 2 }}>
             <TextField label="Search" value={query} onChange={(e) => setQuery(e.target.value)} fullWidth />
             <SelectField label="Priority" value={priority} setValue={setPriority} options={["", "P1", "P2", "P3", "P4", "P5"]} />
@@ -1406,7 +1345,13 @@ function AlertAnalytics({ alerts }) {
     closed: row.closed || 0,
   }));
   return (
-    <Stack spacing={3}>
+    <Stack spacing={3} className="analytics-page">
+      <Card className="command-hero-card">
+        <CardContent>
+          <Typography variant="h4">Alerts Analytics</Typography>
+          <Typography color="text.secondary">Alert trends, distributions, noisy sources, tags, MTTA and MTTR analysis.</Typography>
+        </CardContent>
+      </Card>
       <Grid container spacing={2}>
         <KpiCard label="Number of Alerts" value={alerts.length} />
         <KpiCard label="P1 Alerts" value={alerts.filter((alert) => alert.priority === "P1").length} />
@@ -1414,16 +1359,16 @@ function AlertAnalytics({ alerts }) {
         <KpiCard label="Closed Alerts" value={alerts.filter((alert) => alert.status === "closed").length} />
       </Grid>
       <Grid container spacing={2}>
-        <ChartCard title="Number of Alerts by Status" data={countBy(alerts, "status")} type="donut" defaultHeight={420} />
-        <ChartCard title="Number of Alerts by Priority" data={countBy(alerts, "priority")} type="donut" defaultHeight={420} />
-        <ChartCard title="Number of Alerts per Day by Status" data={dailyStatus} type="stacked" stackKeys={statuses} colors={STATUS_COLORS} defaultHeight={460} />
-        <ChartCard title="Number of Alerts per Day by Priority" data={dailyPriority} type="stacked" stackKeys={priorities} colors={PRIORITY_COLORS} defaultHeight={460} />
-        <ChartCard title="Number of Alerts by Source" data={countBy(alerts, "source").sort((a, b) => b.value - a.value).slice(0, 10)} type="bar" horizontal defaultHeight={440} />
-        <ChartCard title="Alerts by Tag" data={topTags(alerts)} type="bar" horizontal defaultHeight={440} />
-        <ChartCard title="Number of Alerts by Hour (IST)" data={buildAlertsByHour(alerts)} type="bar" defaultHeight={420} />
-        <ChartCard title="Number of Alerts Closed Versus Total Alerts" data={closedByDay} type="stacked" stackKeys={["total", "closed"]} colors={{ total: "#3f6df6", closed: "#68d391" }} defaultHeight={420} />
-        <ChartCard title="Number of Alerts by Day of Week" data={buildAlertsByDayOfWeek(alerts)} type="stacked" stackKeys={["business", "offHours"]} colors={{ business: "#f6c22d", offHours: "#8b7be1" }} defaultHeight={420} />
-        <ChartCard title="Alerts Trend" data={chartByDate(alerts)} type="line" defaultHeight={420} />
+        <ChartCard title="Number of Alerts by Status" data={countBy(alerts, "status")} type="donut" defaultHeight={420} fixedSpan={6} />
+        <ChartCard title="Number of Alerts by Priority" data={countBy(alerts, "priority")} type="donut" defaultHeight={420} fixedSpan={6} />
+        <ChartCard title="Number of Alerts per Day by Status" data={dailyStatus} type="stacked" stackKeys={statuses} colors={STATUS_COLORS} defaultHeight={460} fixedSpan={6} />
+        <ChartCard title="Number of Alerts per Day by Priority" data={dailyPriority} type="stacked" stackKeys={priorities} colors={PRIORITY_COLORS} defaultHeight={460} fixedSpan={6} />
+        <ChartCard title="Number of Alerts by Source" data={countBy(alerts, "source").sort((a, b) => b.value - a.value).slice(0, 10)} type="bar" horizontal defaultHeight={440} fixedSpan={6} />
+        <ChartCard title="Alerts by Tag" data={topTags(alerts)} type="bar" horizontal defaultHeight={440} fixedSpan={6} />
+        <ChartCard title="Number of Alerts by Hour (IST)" data={buildAlertsByHour(alerts)} type="bar" defaultHeight={420} fixedSpan={6} />
+        <ChartCard title="Number of Alerts Closed Versus Total Alerts" data={closedByDay} type="stacked" stackKeys={["total", "closed"]} colors={{ total: "#3f6df6", closed: "#68d391" }} defaultHeight={420} fixedSpan={6} />
+        <ChartCard title="Number of Alerts by Day of Week" data={buildAlertsByDayOfWeek(alerts)} type="stacked" stackKeys={["business", "offHours"]} colors={{ business: "#f6c22d", offHours: "#8b7be1" }} defaultHeight={420} fixedSpan={6} />
+        <ChartCard title="Alerts Trend" data={chartByDate(alerts)} type="line" defaultHeight={420} fixedSpan={6} />
       </Grid>
     </Stack>
   );
@@ -1663,100 +1608,6 @@ function TodoTracker({ todos, setTodos, embedded = false }) {
         <TextField label="Owner" value={form.owner} onChange={(e) => setForm({ ...form, owner: e.target.value })} fullWidth />
         <TextField label="Due Date" type="date" value={form.dueDate} onChange={(e) => setForm({ ...form, dueDate: e.target.value })} InputLabelProps={{ shrink: true }} fullWidth />
       </EditDialog>
-    </Stack>
-  );
-}
-
-function JiraSummaryPage() {
-  const [summary, setSummary] = useState(null);
-  const [jql, setJql] = useState("");
-  const [maxResults, setMaxResults] = useState(100);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-
-  async function loadJiraSummary(nextJql = jql) {
-    setLoading(true);
-    setError("");
-    try {
-      const response = await api.get("/jira/summary", {
-        params: {
-          jql: nextJql || undefined,
-          max_results: maxResults,
-        },
-      });
-      setSummary(response.data);
-      if (!nextJql && response.data.jql) setJql(response.data.jql);
-    } catch (err) {
-      setError(err.response?.data?.detail || "Unable to load Jira summary");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    loadJiraSummary("");
-  }, []);
-
-  const configured = summary?.configured;
-  return (
-    <Stack spacing={3}>
-      <Card className="glass-card">
-        <CardContent>
-          <Stack spacing={2}>
-            <Stack direction={{ xs: "column", md: "row" }} justifyContent="space-between" spacing={2}>
-              <Box>
-                <Typography variant="h6">Jira Summary</Typography>
-                <Typography color="text.secondary">Read-only Jira operational summary. API token stays in the FastAPI backend.</Typography>
-              </Box>
-              <Button startIcon={<Refresh />} variant="contained" onClick={() => loadJiraSummary()}>Refresh Jira</Button>
-            </Stack>
-            <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
-              <TextField label="JQL" value={jql} onChange={(event) => setJql(event.target.value)} fullWidth />
-              <TextField label="Max Results" type="number" value={maxResults} onChange={(event) => setMaxResults(Math.max(1, Math.min(500, Number(event.target.value) || 100)))} sx={{ minWidth: 150 }} />
-              <Button variant="outlined" onClick={() => loadJiraSummary()}>Apply JQL</Button>
-            </Stack>
-            {loading && <LinearProgress />}
-            {error && <Alert severity="error">{error}</Alert>}
-            {summary && !configured && <Alert severity="warning">Jira is not configured. Add JIRA_BASE_URL, JIRA_EMAIL, and JIRA_API_TOKEN in backend/.env, then restart the backend container.</Alert>}
-            {summary?.configured && !summary?.authenticated && <Alert severity="error">{summary.error_message || "Jira authentication failed. Verify backend Jira credentials."}</Alert>}
-          </Stack>
-        </CardContent>
-      </Card>
-
-      <Grid container spacing={2}>
-        <KpiCard label="Total Issues" value={summary?.total_issues || 0} />
-        <KpiCard label="Open Issues" value={summary?.open_issues || 0} />
-        <KpiCard label="In Progress" value={summary?.in_progress_issues || 0} />
-        <KpiCard label="Done Issues" value={summary?.done_issues || 0} />
-        <KpiCard label="Unassigned" value={summary?.unassigned_issues || 0} />
-      </Grid>
-
-      <Grid container spacing={2}>
-        <ChartCard title="Jira Issues by Status" data={summary?.by_status || []} type="bar" horizontal defaultSpan={6} defaultHeight={460} />
-        <ChartCard title="Jira Issues by Priority" data={summary?.by_priority || []} type="bar" horizontal defaultSpan={6} defaultHeight={460} />
-        <ChartCard title="Jira Issues by Type" data={summary?.by_issue_type || []} type="pie" defaultSpan={6} defaultHeight={420} />
-        <ChartCard title="Jira Issues by Assignee" data={(summary?.by_assignee || []).slice(0, 12)} type="bar" horizontal defaultSpan={6} defaultHeight={500} />
-      </Grid>
-
-      <Card className="glass-card">
-        <CardContent>
-          <Typography variant="h6" sx={{ mb: 2 }}>Recent Jira Issues</Typography>
-          <DataTable
-            rows={summary?.recent_issues || []}
-            columns={["Key", "Summary", "Status", "Priority", "Type", "Assignee", "Updated (IST)", "Open"]}
-            render={(issue) => [
-              issue.key,
-              issue.summary,
-              issue.status,
-              issue.priority,
-              issue.issue_type,
-              issue.assignee,
-              formatJiraDate(issue.updated),
-              issue.url ? <Button key={`${issue.key}-open`} startIcon={<Launch />} href={issue.url} target="_blank" rel="noreferrer">Open</Button> : "-",
-            ]}
-          />
-        </CardContent>
-      </Card>
     </Stack>
   );
 }
@@ -2334,34 +2185,6 @@ function ShiftHandover({ mode }) {
         </DialogActions>
       </Dialog>
     </Card>
-  );
-}
-
-function RunbooksPage({ urls, setUrls }) {
-  return (
-    <Stack spacing={2.5}>
-      <Card className="command-hero-card">
-        <CardContent>
-          <Typography variant="h4">Runbooks</Typography>
-          <Typography color="text.secondary">Operational shortcuts and response documentation entry points.</Typography>
-        </CardContent>
-      </Card>
-      <ImportantUrls urls={urls} setUrls={setUrls} />
-    </Stack>
-  );
-}
-
-function SettingsPage({ tasks, onUploaded }) {
-  return (
-    <Stack spacing={2.5}>
-      <Card className="command-hero-card">
-        <CardContent>
-          <Typography variant="h4">Settings</Typography>
-          <Typography color="text.secondary">Application data management, CSV upload, and reporting configuration.</Typography>
-        </CardContent>
-      </Card>
-      <TeamTasks tasks={tasks} onUploaded={onUploaded} />
-    </Stack>
   );
 }
 

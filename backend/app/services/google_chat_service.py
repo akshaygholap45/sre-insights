@@ -35,7 +35,7 @@ class GoogleChatService:
 
 
 def build_handover_message(payload: ShiftHandoverRequest) -> str:
-    title = "SRE Operational Insights - Shift Handover"
+    title = "SRE Operations Center - Shift Handover"
     lines = [f"*{title}*"]
     if payload.shift_type:
         lines.append(f"Shift Type: {payload.shift_type}")

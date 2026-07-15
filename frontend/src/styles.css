@@ -2155,3 +2155,170 @@ body:not(.mintoak-dark) .alert-detail-drawer {
     display: none;
   }
 }
+
+/* Premium Mintoak polish for the simplified five-page layout */
+.app-shell.dark {
+  background:
+    radial-gradient(circle at 9% 8%, rgba(128, 195, 65, 0.18), transparent 28rem),
+    radial-gradient(circle at 92% 10%, rgba(64, 196, 255, 0.1), transparent 32rem),
+    radial-gradient(circle at 70% 88%, rgba(255, 183, 77, 0.09), transparent 30rem),
+    linear-gradient(135deg, #0f1115 0%, #141820 46%, #0f1115 100%);
+}
+
+.app-shell.light {
+  background:
+    radial-gradient(circle at 8% 8%, rgba(128, 195, 65, 0.18), transparent 30rem),
+    radial-gradient(circle at 90% 12%, rgba(72, 130, 28, 0.08), transparent 28rem),
+    linear-gradient(135deg, #f7faf4 0%, #ffffff 48%, #f0f6ec 100%);
+}
+
+.command-topbar,
+.light .command-topbar,
+.dark .command-topbar {
+  border-bottom-color: rgba(128, 195, 65, 0.22) !important;
+  backdrop-filter: blur(30px) saturate(180%);
+  -webkit-backdrop-filter: blur(30px) saturate(180%);
+}
+
+.command-content,
+.content.command-content {
+  padding: clamp(1.1rem, 1.8vw, 2.2rem);
+}
+
+.simple-page {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(1rem, 1.15vw, 1.4rem);
+}
+
+.command-hero-card,
+.filter-card,
+.glass-card,
+.chart-card,
+.command-kpi-card,
+.oncall-meta-card,
+.oncall-engineer-card {
+  border: 1px solid rgba(128, 195, 65, 0.2) !important;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.025)),
+    rgba(23, 26, 32, 0.66) !important;
+  backdrop-filter: blur(28px) saturate(175%);
+  -webkit-backdrop-filter: blur(28px) saturate(175%);
+  box-shadow:
+    0 24px 72px rgba(0, 0, 0, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
+}
+
+.light .command-hero-card,
+.light .filter-card,
+.light .glass-card,
+.light .chart-card,
+.light .command-kpi-card,
+.light .oncall-meta-card,
+.light .oncall-engineer-card {
+  border-color: rgba(72, 130, 28, 0.16) !important;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0.66)),
+    rgba(255, 255, 255, 0.72) !important;
+  box-shadow:
+    0 24px 64px rgba(28, 45, 20, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.72) !important;
+}
+
+.overview-page .command-hero-card,
+.overview-page .glass-card,
+.overview-page .chart-card,
+.overview-page .command-kpi-card {
+  border-radius: 22px !important;
+}
+
+.overview-page .command-hero-card .MuiCardContent-root,
+.overview-page .glass-card .MuiCardContent-root,
+.overview-page .chart-card .MuiCardContent-root {
+  padding: clamp(1.1rem, 1.35vw, 1.55rem) !important;
+}
+
+.overview-page .command-kpi-grid {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: clamp(0.9rem, 1.05vw, 1.25rem);
+  align-items: stretch;
+}
+
+.overview-page .command-kpi-card,
+.overview-page .command-kpi-card .MuiCardContent-root {
+  min-height: 154px;
+  height: 100%;
+}
+
+.overview-page .command-kpi-card .MuiCardContent-root {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 1rem !important;
+}
+
+.overview-page .command-kpi-card:hover,
+.overview-page .chart-card:hover,
+.overview-page .glass-card:hover {
+  transform: translateY(-2px);
+}
+
+.overview-chart-grid {
+  margin-top: 0 !important;
+  align-items: stretch;
+}
+
+.overview-chart-grid > .MuiGrid-item {
+  display: flex;
+}
+
+.overview-chart-grid > .MuiGrid-item > .chart-card {
+  width: 100%;
+}
+
+.analytics-page .MuiGrid-container {
+  align-items: stretch;
+}
+
+.analytics-page .MuiGrid-item {
+  display: flex;
+}
+
+.analytics-page .chart-card {
+  width: 100%;
+  height: 100%;
+}
+
+.analytics-page .chart-card .MuiCardContent-root {
+  display: flex;
+  height: 100%;
+  flex-direction: column;
+}
+
+.analytics-page .chart-card .MuiCardContent-root > .MuiBox-root {
+  flex: 1 1 auto;
+}
+
+@media (max-width: 1599px) {
+  .overview-page .command-kpi-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 1199px) {
+  .overview-page .command-kpi-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .overview-page .command-kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 520px) {
+  .overview-page .command-kpi-grid {
+    grid-template-columns: 1fr;
+  }
+}
